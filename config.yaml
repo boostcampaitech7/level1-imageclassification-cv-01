@@ -1,0 +1,21 @@
+exp_name: test
+batch_size: 128
+epochs: 1
+learning_rate: 0.01
+gpus: 0
+model_type: timm
+# for torchvision and timm
+model_name: resnet18
+pretrained: False
+train_data_dir: ./data/train
+test_data_dir: ./data/test
+base_output_dir: ./result
+num_classes: 500
+use_wandb: True
+data_name: base
+num_workers: 1
+
+#select_transforms.py
+transform_name: torchvision
+traindata_info_file: ./data/train.csv
+testdata_info_file: ./data/test.csv
