@@ -18,25 +18,23 @@ def show_image(type,path):
         st.header("train image: "+path)
         st.image("../data/train/"+path)
 
-if "test" not in st.session_state:
-    st.session_state.test = 0
-    st.session_state.train = 0
-
-testd, traind = load_data()
-
 option = st.sidebar.selectbox("데이터 선택",("CSV파일"))
 
 if option == "CSV파일":
+    testd, traind = load_data()
+    if "path" not in st.session_state:
+        st.session_state.path = [0,0]
+
     targetdata = st.sidebar.checkbox("트레인 데이터 타겟 설정")
     c1, c2 = st.columns(2)
     c1.header("테스트 데이터")
-    testevent = c1.dataframe(testd,selection_mode={"single-row"},on_select='rerun')
-    c1.write("테스트 데이터 수: "+str(testd.size)+"개")
+    testevent = c1.dataframe(testd,selection_mode={"single-row"},on_select='rerun')["selection"]["rows"]
+    c1.write("테스트 데이터 수: "+str(testd.shape[0])+"개")
 
     if not targetdata:
         c2.header("트레인 데이터")
-        trainevent = c2.dataframe(traind,selection_mode={"single-row"},on_select='rerun')
-        c2.write("트레인 데이터 수: "+str(traind.size)+"개")
+        trainevent = c2.dataframe(traind,selection_mode={"single-row"},on_select='rerun')["selection"]["rows"]
+        c2.write("트레인 데이터 수: "+str(traind.shape[0])+"개")
         traintargetcount = traind["target"].value_counts().sort_index()
         st.header("트레인 데이터 타겟 값 분포")
         c1, c2 = st.columns([1,7])
@@ -51,18 +49,15 @@ if option == "CSV파일":
 
         traind = traind.loc[traind.target == target]
         c2.header("트레인 데이터")
-        trainevent = c2.dataframe(traind,selection_mode={"single-row"},on_select='rerun')
-        c2.write("타겟 값이 "+str(target)+"인 트레인 데이터 수: "+str(traind["target"].size)+"개")
+        trainevent = c2.dataframe(traind,selection_mode={"single-row"},on_select='rerun')["selection"]["rows"]
+        c2.write("타겟 값이 "+str(target)+"인 트레인 데이터 수: "+str(traind.shape[0])+"개")
 
-
-    if testevent["selection"]["rows"] :
-        path = testd.iloc[testevent["selection"]["rows"][0]]['image_path']
-        if path != st.session_state.test:
-            show_image("test",path)
-            st.session_state.test = path
-
-    if trainevent["selection"]["rows"] :
-        path = traind.iloc[trainevent["selection"]["rows"][0]]['image_path']
-        if path != st.session_state.train:
-            show_image("train",path)
-            st.session_state.train = path
+path = 0
+if testevent and st.session_state.path[0] != testd.loc[testevent[0]]["image_path"]:
+    path = st.session_state.path[0] = testd.loc[testevent[0]]["image_path"]
+    type = "test"
+if trainevent and st.session_state.path[1] != traind.loc[trainevent[0]]["image_path"]:
+    path = st.session_state.path[1] = traind.loc[trainevent[0]]["image_path"]
+    type = "train"
+if path:
+    show_image(type,path)
