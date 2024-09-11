@@ -6,7 +6,6 @@ import torch
 import pytorch_lightning as pl
 from torchvision.datasets.mnist import MNIST
 from torch.utils.data import DataLoader, random_split
-from torch.utils.data import DataLoader
 # from torchvision import transforms
 
 
@@ -14,13 +13,14 @@ from data_sets import folder_dataset, base_dataset
 from select_transforms import TransformSelector
 
 class SketchDataModule(pl.LightningDataModule):
+
     def __init__(self, **kwargs):
         super().__init__()
+
         self.train_data_dir = kwargs['train_data_dir'] 
         self.test_data_dir = kwargs['test_data_dir'] 
         self.batch_size = kwargs['batch_size']
         self.data_name = kwargs['data_name']
-
 
         self.train_data_dir = kwargs['train_data_dir']
         self.test_data_dir = kwargs['test_data_dir']
@@ -41,7 +41,6 @@ class SketchDataModule(pl.LightningDataModule):
     def setup(self, stage: str):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit":
-            # full_trainset = folder_dataset.CustomImageFolderDataset(self.train_data_dir, transform=self.train_transform)
             
             full_trainset = train_data(self.data_name, self.train_transform, self.train_data_dir,info_df=self.train_info_df) #TODO val,train 분리
             
@@ -49,10 +48,6 @@ class SketchDataModule(pl.LightningDataModule):
                 full_trainset, [0.8, 0.2], generator=torch.Generator().manual_seed(42)
             )
 
-        # Assign test dataset for use in dataloader(s)
-        # if stage == "test":
-        #     # self.test_dataset = folder_dataset.CustomImageFolderDataset(self.test_data_dir, transform=self.test_transform)
-        #     self.test_dataset = test_data(self.data_name, self.test_transform, self.test_data_dir,info_df=self.test_info_df)
         
         if stage == "predict":
             self.test_dataset = test_data(self.data_name, self.test_transform, self.test_data_dir,info_df=self.test_info_df)

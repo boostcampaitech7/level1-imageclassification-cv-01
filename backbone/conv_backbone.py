@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 class MNIST_conv(nn.Module):
-    def __init__(self, num_classes=2,**kwargs):
+    def __init__(self, num_classes=2 ,**kwargs):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)

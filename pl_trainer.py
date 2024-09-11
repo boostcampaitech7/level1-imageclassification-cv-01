@@ -80,5 +80,8 @@ class Sketch_Classifier(pl.LightningModule):
 
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
+        
+        
+
         return torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate)
 
