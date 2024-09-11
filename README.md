@@ -86,7 +86,7 @@ main에서는 hparams.키워드 로 불러올 수 있음
 예시 config gpu를 2,3 (2번째, 3번째 gpu)으로 수정
 
 ## 내가 이 Readme를 꾸미겠다 
-어서 하십쇼
+부탁드립니다
 
 ### TODO
 - [ ] Resuming from checkpoints
