@@ -55,7 +55,8 @@ def parse_args(config):
     parser.add_argument('--data_name', type=str, default=config.get('data_name')) # dataset 이름
     parser.add_argument('--transform_name', type=str, default=config.get('transform_name')) 
     parser.add_argument('--num_classes', type=int, default=config.get('num_classes'))
-    
+    parser.add_argument('--optim', type=str, default=config.get('optim'))
+    parser.add_argument('--loss', type=str, default=config.get('loss'))
 
     parser.add_argument('--train_data_dir', type=str, default=config.get('train_data_dir'))
     parser.add_argument('--traindata_info_file', type=str, default=config.get('traindata_info_file'))

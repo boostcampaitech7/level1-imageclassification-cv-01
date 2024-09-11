@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torchmetrics
 
 import net
-
+from losses import get_loss
 
 
 class Sketch_Classifier(pl.LightningModule):
@@ -21,8 +21,9 @@ class Sketch_Classifier(pl.LightningModule):
         self.learning_rate = kwargs['learning_rate'] 
 
         self.accuracy = torchmetrics.classification.Accuracy(task="multiclass", num_classes=kwargs['num_classes'])
-        self.criterion = nn.CrossEntropyLoss()
-
+        # self.criterion = nn.CrossEntropyLoss()
+        self.criterion = get_loss(loss_name=kwargs['loss'],**kwargs)
+        self.optim = kwargs['optim']
 
     def forward(self, x):
         # use forward for inference/predictions
@@ -81,7 +82,7 @@ class Sketch_Classifier(pl.LightningModule):
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
         
-        
-
-        return torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate)
-
+        if self.optim == 'Adam':
+            return torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate)
+        else:
+            raise ValueError('not a correct optim name', self.optim)

@@ -14,7 +14,8 @@ num_classes: 500
 use_wandb: True
 data_name: base
 num_workers: 1
-
+optim: Adam 
+loss: CE 
 #select_transforms.py
 transform_name: torchvision
 traindata_info_file: ./data/train.csv
