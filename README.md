@@ -33,20 +33,22 @@ select_transforms.py의 TransformSelector 클래스의
 get_transform 함수에서 elif 문으로 transform_type을 추가
 TransformSelector의 init에 option 확인 추가 
 
-
+```
 main.py (`data_mod = data_module.SketchDataModule(**hparams)`) 
 -> data_module.py (`transform_selector = TransformSelector(kwargs['transform_name'])`)
 -> select_transforms.py (`TransformSelector init 참고`)
 -> select_transforms.py (`get_transform 참고`)
+```
 
 ## datasets 
 data_module.py에서 train_data, test_data 함수에 elif문으로 data_name 추가
 생성한 dataset class 반환 
 config.yaml에서 data_name 수정 
 
+```
 main.py (`data_mod = data_module.SketchDataModule(**hparams)`) 
 -> data_module.py (`def train_data`, `def test_data`) 각각 train, test dataset 정의 
-
+```
 
 ### backbone 수정 
 net.py의 ModelSelector class의 init에 elif 문으로 model_type 추가 
@@ -83,7 +85,8 @@ main에서는 hparams.키워드 로 불러올 수 있음
 ## 만약 gpu가 2개 이상이다...? 
 예시 config gpu를 2,3 (2번째, 3번째 gpu)으로 수정
 
-
+## 내가 이 Readme를 꾸미겠다 
+어서 하십쇼
 
 ### TODO
 - [ ] Resuming from checkpoints
