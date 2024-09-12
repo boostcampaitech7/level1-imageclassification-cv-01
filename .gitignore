@@ -118,3 +118,5 @@ lightning_logs/
 test_set/
 training_set/
 data/
+*.tar.gz
+*._data

@@ -14,7 +14,7 @@ timm==0.9.16
 albumentations==1.4.14
 tqdm==4.66.1
 scikit-learn==1.4.2
-opencv==4.10.0
+opencv-python
 torchmetrics==1.4.0
 pytorch-lightning==2.4.0
 wandb
