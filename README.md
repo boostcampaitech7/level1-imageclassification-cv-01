@@ -6,18 +6,21 @@
 프로젝트 위치에 data 압축 풀기 
 위치 확인 필요
 
-아래 코드 순서대로 
-```
+~~conda create -n 가상환경이름 python=3.12~~
+~~conda activate 가상환경이름~~
+~~conda install --yes --file requirements.txt -c conda-forge~~
+~~conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia~~
 
-conda create -n 가상환경이름 python=3.12
-
-conda activate 가상환경이름
-
-conda install --yes --file requirements.txt -c conda-forge
-
-conda install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+가상환경 쓰면 터짐 그냥 pip으로 다 깔기 
 
 ```
+
+pip install -r pip install -r requirements.txt 
+pip install pytorch==2.3.0 torchvision==0.18.0 torchaudio==2.3.0
+
+```
+
+
 
 ## Project Tree
 TODO 
