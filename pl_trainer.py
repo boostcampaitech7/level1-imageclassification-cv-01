@@ -87,8 +87,11 @@ class Sketch_Classifier(pl.LightningModule):
         # self.hparams available because we called self.save_hyperparameters()
         
         if self.optim == 'Adam':
-            opt = torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate,weight_decay = self.weight_decay)
-            
+            opt = torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.optim == 'AdamW':
+            opt = torch.optim.AdamW(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.optim == 'RAdam':
+            opt = torch.optim.RAdam(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         else:
             raise ValueError('not a correct optim name', self.optim)
         
