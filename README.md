@@ -119,7 +119,7 @@ level1-imageclassification-cv-01/
 
 - #### Data Augmentation using OpenCV
 
-  **Augmentation methods that cannot be handled by `Transform` are performed using OpenCV. The augmented data is then added to the data folder.** 
+  **Augmentation methods that cannot be handled by `[Torchvision.transforms](https://pytorch.org/vision/0.9/transforms.html)' or '[Albumentations.Transforms](https://albumentations.ai/docs/getting_started/transforms_and_targets/)' are performed using OpenCV. The augmented data is then added to the data folder.** 
 
 - #### Data Augmentation using Transform  
   **Modify the `TransformSelector` class in `select_transforms.py` as follows:** 
