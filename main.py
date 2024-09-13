@@ -87,7 +87,8 @@ def main(args):
     csv_logger = CSVLogger(save_dir=hparams.output_dir, name='result')
     my_loggers = [csv_logger]
     if args.use_wandb:
-        
+        import wandb
+        wandb.init(project="sketch classification", entity="nav_sketch")
         wandb_logger = WandbLogger(save_dir=hparams.output_dir,
                                    name=os.path.basename(hparams.output_dir), project='sketch classification')
         my_loggers.append(wandb_logger)
