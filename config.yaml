@@ -1,5 +1,5 @@
 exp_name: vit_base_patch16_224_in21k_224_256_100_0.0005
-batch_size: 256
+batch_size: 128
 epochs: 100
 learning_rate: 0.0005
 gpus: 0
