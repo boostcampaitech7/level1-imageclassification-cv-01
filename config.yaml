@@ -1,16 +1,10 @@
-<<<<<<< HEAD
-exp_name: val_csv
-batch_size: 256
-=======
-exp_name: vit_base_patch16_224_in21k_224_256_100_0.0005
-batch_size: 128
->>>>>>> f99fb83d5449b974192c8a23640aa7ee102bea4e
+exp_name: v2
 epochs: 100
-learning_rate: 0.0005
+learning_rate: 0.01
 gpus: 0
 model_type: timm
 # for torchvision and timm
-model_name: vit_base_patch16_224_in21k
+model_name: resnet50
 pretrained: True
 train_data_dir: ./data/train
 test_data_dir: ./data/test
@@ -19,13 +13,13 @@ num_classes: 500
 use_wandb: True
 data_name: base
 num_workers: 8
-optim: Adam 
-weight_decay: 0.01
-loss: CE 
-#select_transforms.py
-transform_name: torchvision
-traindata_info_file: ./data/train.csv
 testdata_info_file: ./data/test.csv
 cos_sch: 20
 early_stopping: 5
 warm_up: 10
+batch_size: 256
+weight_decay: 0.0
+loss: CE 
+transform_name: torchvision
+optim: Adam
+traindata_info_file: ./data/train.csv
