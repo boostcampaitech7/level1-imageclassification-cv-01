@@ -1,4 +1,4 @@
-exp_name: pretrin_warmup_cossch_earlystop
+exp_name: val_csv
 batch_size: 256
 epochs: 100
 learning_rate: 0.001

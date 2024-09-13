@@ -8,6 +8,11 @@ import torchmetrics
 import net
 from losses import get_loss
 
+import itertools
+import numpy as np
+import pandas as pd 
+import os 
+
 
 class Sketch_Classifier(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -27,7 +32,8 @@ class Sketch_Classifier(pl.LightningModule):
         self.weight_decay = kwargs['weight_decay']
         self.cos_sch = kwargs['cos_sch']
         self.warm_up = kwargs['warm_up']
-        
+        self.output_dir = kwargs['output_dir']
+
 
     def forward(self, x):
         # use forward for inference/predictions
@@ -41,6 +47,11 @@ class Sketch_Classifier(pl.LightningModule):
 
         acc  = self.accuracy(y_hat, y)
         # https://lightning.ai/docs/pytorch/stable/extensions/logging.html
+        
+        #lr log 추가 
+        current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
+        self.log('learning_rate', current_lr, on_step=True, on_epoch=False)
+
         self.log('train_loss', loss, on_epoch=True)
         self.log('train_acc', acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
@@ -56,13 +67,13 @@ class Sketch_Classifier(pl.LightningModule):
         y_hat = self(x)
         loss = self.criterion(y_hat, y)
         
+        # preds = torch.argmax(y_hat, dim=1)  
 
         acc  = self.accuracy(y_hat, y)
         self.log('valid_loss', loss, on_step=True)
         self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
 
-        
 
     # def test_step(self, batch, batch_idx):
     #     x, y = batch
@@ -92,15 +103,11 @@ class Sketch_Classifier(pl.LightningModule):
         else:
             raise ValueError('not a correct optim name', self.optim)
         
-        # if self.cos_sch>0:
-        #     cos_sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.cos_sch)
-        
-        # if self.warm_up>0:
-        #     warm_up = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, total_iters=self.warm_up)
         schedulers = []
         milestones = []
 
         if self.warm_up>0:
+            #TODO
             warm_up = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, total_iters=self.warm_up)
             schedulers.append(warm_up)
             milestones.append(self.warm_up)  # warmup 끝나는 시점 설정 (10 에포크)

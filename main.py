@@ -122,15 +122,33 @@ def main(args):
     # ------------
     # testing
     # ------------
+
+    best_model_path = checkpoint_callback[0].best_model_path
+
+    best_model = Sketch_Classifier.load_from_checkpoint(best_model_path, **hparams)
+
+
     print('start predict')
     
-    predictions = trainer.predict(trainer_mod, datamodule=data_mod)
+    predictions = trainer.predict(best_model, datamodule=data_mod)
     pred_list = [pred.cpu().numpy() for batch in predictions for pred in batch]
 
     test_info = data_mod.test_dataset.info_df
     test_info['target'] = pred_list
     test_info.to_csv(os.path.join(args.output_dir,"output.csv"), index=False)
     
+    print('start predict validation dataset')
+
+    data_mod.test_data_dir = data_mod.train_data_dir
+    data_mod.test_info_df = data_mod.val_info_df
+    data_mod.setup(stage='predict')
+
+
+    validations = trainer.predict(best_model, dataloaders=data_mod.predict_dataloader())
+    val_list = [val.cpu().numpy() for batch in validations for val in batch]
+    val_info = data_mod.test_dataset.info_df
+    val_info['pred'] = val_list
+    val_info.to_csv(os.path.join(args.output_dir,"validation.csv"), index=False)
 
 if __name__ == '__main__':
 
