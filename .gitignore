@@ -100,6 +100,9 @@ ENV/
 # mypy
 .mypy_cache/
 
+# config.yaml
+config.yaml
+
 # input data, saved log, checkpoints
 data/
 input/
