@@ -87,6 +87,7 @@ def main(args):
     csv_logger = CSVLogger(save_dir=hparams.output_dir, name='result')
     my_loggers = [csv_logger]
     if args.use_wandb:
+        
         wandb_logger = WandbLogger(save_dir=hparams.output_dir,
                                    name=os.path.basename(hparams.output_dir), project='sketch classification')
         my_loggers.append(wandb_logger)
@@ -143,7 +144,11 @@ if __name__ == '__main__':
 
     ## output_dir 
     current_time = strftime("%m-%d_0", gmtime())
-    args.output_dir = os.path.join(args.base_output_dir, args.exp_name + "_" + current_time)
+    pt = "O" if args.pretrained else 'X'
+    name_str =  f"{args.model_name}-{args.batch_size}-{args.learning_rate}"+\
+                f"-{args.optim}-{pt}-{args.exp_name}"
+    # args.output_dir = os.path.join(args.base_output_dir, args.exp_name + "_" + current_time)
+    args.output_dir = os.path.join(args.base_output_dir, name_str + "_" + current_time)
     if os.path.isdir(args.output_dir):
         while True:
             cur_exp_number = int(args.output_dir[-2:].replace('_', ""))
