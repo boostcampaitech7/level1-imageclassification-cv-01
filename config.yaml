@@ -1,11 +1,11 @@
-exp_name: pretrin_warmup_cossch_earlystop
+exp_name: vit_base_patch16_224_in21k_224_256_100_0.0005
 batch_size: 256
 epochs: 100
-learning_rate: 0.001
+learning_rate: 0.0005
 gpus: 0
 model_type: timm
 # for torchvision and timm
-model_name: resnet50
+model_name: vit_base_patch16_224_in21k
 pretrained: True
 train_data_dir: ./data/train
 test_data_dir: ./data/test
@@ -15,7 +15,7 @@ use_wandb: True
 data_name: base
 num_workers: 8
 optim: Adam 
-weight_decay: 0.
+weight_decay: 0.01
 loss: CE 
 #select_transforms.py
 transform_name: torchvision
