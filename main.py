@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, random_split
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint,EarlyStopping
 
 from torchvision.datasets.mnist import MNIST
 from torchvision import transforms
@@ -56,7 +56,11 @@ def parse_args(config):
     parser.add_argument('--transform_name', type=str, default=config.get('transform_name')) 
     parser.add_argument('--num_classes', type=int, default=config.get('num_classes'))
     parser.add_argument('--optim', type=str, default=config.get('optim'))
+    parser.add_argument('--weight_decay', type=str, default=config.get('weight_decay'))
     parser.add_argument('--loss', type=str, default=config.get('loss'))
+    parser.add_argument('--cos_sch', type=int, default=config.get('cos_sch')) # cos 주기
+    parser.add_argument('--warm_up', type=int, default=config.get('warm_up'))
+    parser.add_argument('--early_stopping', type=int , default=config.get('early_stopping'))
 
     parser.add_argument('--train_data_dir', type=str, default=config.get('train_data_dir'))
     parser.add_argument('--traindata_info_file', type=str, default=config.get('traindata_info_file'))
@@ -92,8 +96,14 @@ def main(args):
     monitor = 'val_acc'
     mode = 'max'
     save_top_k = 1 # best 하나 저장 + Last 저장 
-    checkpoint_callback = ModelCheckpoint(dirpath=hparams.output_dir, save_last=True,
-                                          save_top_k=save_top_k, monitor=monitor, mode=mode)
+    checkpoint_callback = [] 
+    checkpoint_callback.append(ModelCheckpoint(dirpath=hparams.output_dir, save_last=True,
+                                          save_top_k=save_top_k, monitor=monitor, mode=mode))
+    
+    
+    if hparams.early_stopping>0:
+        early_stop = EarlyStopping(monitor="valid_loss", patience=hparams.early_stopping, verbose=False, mode="min")
+        checkpoint_callback.append(early_stop)
 
     # ------------
     # training
@@ -101,7 +111,7 @@ def main(args):
     trainer = pl.Trainer(logger=my_loggers,
                         accelerator='cpu' if hparams.gpus == 0 else 'gpu',
                         devices=None if hparams.gpus == 0 else hparams.gpus,
-                        callbacks=[checkpoint_callback],
+                        callbacks=checkpoint_callback,
                         max_epochs=hparams.epochs)
     
     trainer_mod = Sketch_Classifier(**hparams)

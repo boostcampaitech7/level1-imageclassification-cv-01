@@ -24,6 +24,10 @@ class Sketch_Classifier(pl.LightningModule):
         # self.criterion = nn.CrossEntropyLoss()
         self.criterion = get_loss(loss_name=kwargs['loss'],**kwargs)
         self.optim = kwargs['optim']
+        self.weight_decay = kwargs['weight_decay']
+        self.cos_sch = kwargs['cos_sch']
+        self.warm_up = kwargs['warm_up']
+        
 
     def forward(self, x):
         # use forward for inference/predictions
@@ -83,6 +87,40 @@ class Sketch_Classifier(pl.LightningModule):
         # self.hparams available because we called self.save_hyperparameters()
         
         if self.optim == 'Adam':
-            return torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate)
+            opt = torch.optim.Adam(self.backbone.parameters(), lr=self.learning_rate,weight_decay = self.weight_decay)
+            
         else:
             raise ValueError('not a correct optim name', self.optim)
+        
+        # if self.cos_sch>0:
+        #     cos_sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.cos_sch)
+        
+        # if self.warm_up>0:
+        #     warm_up = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, total_iters=self.warm_up)
+        schedulers = []
+        milestones = []
+
+        if self.warm_up>0:
+            warm_up = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, total_iters=self.warm_up)
+            schedulers.append(warm_up)
+            milestones.append(self.warm_up)  # warmup 끝나는 시점 설정 (10 에포크)
+        
+        if self.cos_sch>0:
+
+            cos_sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.cos_sch)
+            schedulers.append(cos_sch)
+
+        
+        if len(schedulers)>0:
+            scheduler = torch.optim.lr_scheduler.SequentialLR(opt,schedulers=schedulers,milestones=milestones[:len(schedulers)-1])
+            return {
+                "optimizer": opt,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "monitor": "train_loss",
+                    "interval": "step", # step means "batch" here, default: epoch   # New!
+                    "frequency": 1, # default
+                },
+            }
+        else:
+            return opt 
