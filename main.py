@@ -131,7 +131,7 @@ def main(args):
     test_info = data_mod.test_dataset.info_df
     test_info['target'] = pred_list
 
-    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)')
+    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)').astype(int)
     test_info.sort_values(by=['ID'],inplace=True)
     test_info = test_info[['ID','image_path','target']]
 
