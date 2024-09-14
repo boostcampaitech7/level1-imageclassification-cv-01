@@ -135,6 +135,11 @@ def main(args):
 
     test_info = data_mod.test_dataset.info_df
     test_info['target'] = pred_list
+
+    test_info['ID'] = test_info['image_path'].str.replace('.JPEG','').astype(int)
+    test_info.sort_values(by=['ID'],inplace=True)
+    test_info = test_info[['ID','image_path','target']]
+
     test_info.to_csv(os.path.join(args.output_dir,"output.csv"), index=False)
     
     print('start predict validation dataset')
