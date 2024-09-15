@@ -1,25 +1,20 @@
+import os
 from argparse import ArgumentParser
-import os 
-
-import torch
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
-
-
-import pytorch_lightning as pl
-from pytorch_lightning.loggers import CSVLogger, WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint,EarlyStopping
-
-from torchvision.datasets.mnist import MNIST
-from torchvision import transforms
-
-from pl_trainer import Sketch_Classifier
-from utils.util import dotdict
-import data_module
-import yaml
-
 from time import gmtime, strftime
 
+import pytorch_lightning as pl
+import torch
+import yaml
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import CSVLogger, WandbLogger
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, random_split
+from torchvision import transforms
+from torchvision.datasets.mnist import MNIST
+
+import data_module
+from pl_trainer import Sketch_Classifier
+from utils.util import dotdict
 
 # TODO
 # test option 따로 만들기
@@ -135,6 +130,11 @@ def main(args):
 
     test_info = data_mod.test_dataset.info_df
     test_info['target'] = pred_list
+
+    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)').astype(int)
+    test_info.sort_values(by=['ID'],inplace=True)
+    test_info = test_info[['ID','image_path','target']]
+
     test_info.to_csv(os.path.join(args.output_dir,"output.csv"), index=False)
     
     print('start predict validation dataset')
