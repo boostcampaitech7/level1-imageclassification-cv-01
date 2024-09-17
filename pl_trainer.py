@@ -15,6 +15,28 @@ import pandas as pd
 import os 
 
 
+def cutmix(batch, alpha=0.9):
+    data, targets = batch
+    indices = torch.randperm(data.size(0))
+    shuffled_data = data[indices]
+    shuffled_targets = targets[indices]
+    lam = np.random.uniform(0.1, alpha)
+
+    image_h, image_w = data.shape[2:]
+    cx = np.random.uniform(0, image_w)
+    cy = np.random.uniform(0, image_h)
+    w = image_w * np.sqrt(1 - lam)
+    h = image_h * np.sqrt(1 - lam)
+    x0 = int(np.round(max(cx - w / 2, 0)))
+    x1 = int(np.round(min(cx + w / 2, image_w)))
+    y0 = int(np.round(max(cy - h / 2, 0)))
+    y1 = int(np.round(min(cy + h / 2, image_h)))
+
+    data[:, :, y0:y1, x0:x1] = shuffled_data[:, :, y0:y1, x0:x1]
+    targets = (targets, shuffled_targets, lam)
+
+    return data, targets
+
 class Sketch_Classifier(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
@@ -42,22 +64,43 @@ class Sketch_Classifier(pl.LightningModule):
         return embedding
 
     def training_step(self, batch, batch_idx):
+        # 기존 배치에서 x, y를 가져오기
         x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        
+        # CutMix를 적용한 새로운 데이터 생성
+        x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
 
-        acc  = self.accuracy(y_hat, y)
-        # https://lightning.ai/docs/pytorch/stable/extensions/logging.html
+        # 모델 예측 (원본 데이터)
+        y_hat_original = self(x)
+        
+        # 모델 예측 (CutMix된 데이터)
+        y_hat_cutmix = self(x_cutmix)
+        
+        # Loss 계산 (원본 데이터에 대한 손실)
+        loss_original = self.criterion(y_hat_original, y)
+        
+        # Loss 계산 (CutMix 데이터에 대한 손실)
+        loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (1 - lam) * self.criterion(y_hat_cutmix, y2)
+        
+        # 두 손실을 합산
+        total_loss = loss_original + loss_cutmix
+
+        # 예측 결과 합치기
+        y_combined = torch.cat([y, y1], dim=0)  # 원본 데이터의 타겟과 CutMix의 타겟을 결합
+        y_hat_combined = torch.cat([y_hat_original, y_hat_cutmix], dim=0)  # 원본 예측과 CutMix 예측을 결합
+        
+        # 정확도 계산 (원본과 CutMix 데이터 모두 포함)
+        total_acc = self.accuracy(y_hat_combined, y_combined)
         
         #lr log 추가 
         current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
         self.log('learning_rate', current_lr, on_step=True, on_epoch=False)
 
-        self.log('train_loss', loss, on_epoch=True)
-        self.log('train_acc', acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_loss', total_loss, on_epoch=True)
+        self.log('train_acc', total_acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
 
-        return loss
+        return total_loss
 
     # def training_epoch_end(self, outputs):
     #     return None
