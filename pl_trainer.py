@@ -71,6 +71,7 @@ class Sketch_Classifier(pl.LightningModule):
         preds = torch.argmax(y_hat, dim=1)  
         acc  = self.accuracy(y_hat, y)
         f1 = f1_score(y.cpu(), preds.cpu(), average='macro')  # 'macro'는 클래스에 대한 평균을 의미합니다.
+        
         self.log('valid_loss', loss, on_step=True)
         self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_f1', f1, on_step=False, on_epoch=True, prog_bar=True, logger=True)
