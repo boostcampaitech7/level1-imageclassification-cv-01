@@ -64,7 +64,9 @@ def parse_args(config):
     
     parser.add_argument('--use_wandb', type=int, default=config.get('use_wandb')) # wandb 사용?
     parser.add_argument('--num_workers', type=str, default=config.get('num_workers')) # dataloader 옵션 관련 
-
+    # 경윤---
+    parser.add_argument('--cutmix_mixup', type=str, default=config.get('cutmix_mixup'))
+    # 경윤---
     return parser.parse_args()
 
 
