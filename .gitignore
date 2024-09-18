@@ -124,3 +124,6 @@ training_set/
 data/
 *.tar.gz
 *._data
+test.ipynb
+*.JPEG
+*.csv
