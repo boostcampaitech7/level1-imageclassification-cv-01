@@ -15,6 +15,7 @@ import pandas as pd
 import os 
 
 def cutmix(batch, alpha=0.9):
+    
     data, targets = batch
     indices = torch.randperm(data.size(0))
     shuffled_data = data[indices]
@@ -31,10 +32,12 @@ def cutmix(batch, alpha=0.9):
     y0 = int(np.round(max(cy - h / 2, 0)))
     y1 = int(np.round(min(cy + h / 2, image_h)))
 
-    data[:, :, y0:y1, x0:x1] = shuffled_data[:, :, y0:y1, x0:x1]
+    # inplace 연산 역전파 오류 방지 
+    new_data = data.clone()  # 원본 데이터를 클론하여 새로운 텐서를 생성
+    new_data[:, :, y0:y1, x0:x1] = shuffled_data[:, :, y0:y1, x0:x1]  # in-place 연산 방지
     targets = (targets, shuffled_targets, lam)
 
-    return data, targets
+    return new_data, targets
 
 #경윤---
 def mixup(images, labels, alpha=1.0):
@@ -44,7 +47,7 @@ def mixup(images, labels, alpha=1.0):
     shuffled_labels = labels[indices]
 
     # 베타 분포에서 샘플링된 값으로 lambda를 구함
-    lam = np.clip(np.random.beta(alpha, alpha), 0.5, 0.6) 
+    lam = np.clip(np.random.beta(alpha, alpha), 0.5, 0.6)
     
     # 이미지와 레이블을 lam 비율에 따라 선형 결합
     mixedup_images = lam * images + (1 - lam) * shuffled_images
@@ -87,21 +90,18 @@ class Sketch_Classifier(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         
+        x, y = batch
+        y_hat_original = self(x)
+        loss_original = self.criterion(y_hat_original, y)
+        total_acc = self.accuracy(y_hat_original, y)
+
         if self.cutmix_mixup == 'cutmix':
-            # 기존 배치에서 x, y를 가져오기
-            x, y = batch
             
             # CutMix를 적용한 새로운 데이터 생성
             x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
-
-            # 모델 예측 (원본 데이터)
-            y_hat_original = self(x)
             
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
-            
-            # Loss 계산 (원본 데이터에 대한 손실)
-            loss_original = self.criterion(y_hat_original, y)
             
             # Loss 계산 (CutMix 데이터에 대한 손실)
             loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (1 - lam) * self.criterion(y_hat_cutmix, y2)
@@ -109,26 +109,8 @@ class Sketch_Classifier(pl.LightningModule):
             # 두 손실을 합산
             total_loss = loss_original + loss_cutmix
 
-            # 예측 결과 합치기
-            y_combined = torch.cat([y, y1], dim=0)  # 원본 데이터의 타겟과 CutMix의 타겟을 결합
-            y_hat_combined = torch.cat([y_hat_original, y_hat_cutmix], dim=0)  # 원본 예측과 CutMix 예측을 결합
-        
-            # 정확도 계산
-            total_acc = self.accuracy(y_hat_original, y)
-            
-            #lr log 추가 
-            current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
-            self.log('learning_rate', current_lr, on_step=True, on_epoch=False)
-
-            self.log('train_loss', total_loss, on_epoch=True)
-            self.log('train_acc', total_acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-            return total_loss
-        
         elif self.cutmix_mixup == 'mixup':
-            ### 경윤---
-            # 기존 배치에서 x, y를 가져오기
-            x, y = batch
+            ### 경윤---            
 
             # 라벨을 원-핫 인코딩으로 변환 (Mixup에만 사용)
             y_onehot = F.one_hot(y, self.num_classes).float()
@@ -136,34 +118,26 @@ class Sketch_Classifier(pl.LightningModule):
             # Mixup 적용
             x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8)
 
-            # 원본 데이터에 대한 예측
-            y_hat_original = self(x)
 
             # Mixup 데이터에 대한 예측
             y_hat_mixup = self(x_mixup)
-
-            # 원본 데이터에 대한 손실
-            loss_original = self.criterion(y_hat_original, y)
 
             # Mixup 데이터에 대한 손실
             loss_mixup = lam_mixup * self.criterion_bce(y_hat_mixup, y_onehot) + (1 - lam_mixup) * self.criterion_bce(y_hat_mixup, y_mixup)
 
             # 총 손실 합산
             total_loss = loss_original + loss_mixup
-
-            # 정확도 계산
-            total_acc = self.accuracy(y_hat_original, y)
             ### 경윤---
+        else:
+            total_loss = loss_original
+            
+        current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
+        self.log('learning_rate', current_lr, on_step=True, on_epoch=False)
 
-            #lr log 추가 
-            current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
-            self.log('learning_rate', current_lr, on_step=True, on_epoch=False)
+        self.log('train_loss', total_loss, on_epoch=True)
+        self.log('train_acc', total_acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-            self.log('train_loss', total_loss, on_epoch=True)
-            self.log('train_acc', total_acc,on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-            return total_loss
-
+        return total_loss
     # def training_epoch_end(self, outputs):
     #     return None
 
