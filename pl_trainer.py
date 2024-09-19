@@ -107,7 +107,7 @@ class Sketch_Classifier(pl.LightningModule):
             loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (1 - lam) * self.criterion(y_hat_cutmix, y2)
             
             # 두 손실을 합산
-            total_loss = loss_original + loss_cutmix
+            total_loss = 0.6 * loss_original + 0.4 * loss_cutmix
 
         elif self.cutmix_mixup == 'mixup':
             ### 경윤---            
@@ -126,8 +126,24 @@ class Sketch_Classifier(pl.LightningModule):
             loss_mixup = lam_mixup * self.criterion_bce(y_hat_mixup, y_onehot) + (1 - lam_mixup) * self.criterion_bce(y_hat_mixup, y_mixup)
 
             # 총 손실 합산
-            total_loss = loss_original + loss_mixup
+            total_loss = 0.6 * loss_original + 0.4 * loss_mixup
             ### 경윤---
+        
+        elif self.cutmix_mixup == 'cutmix_mixup' or self.cutmix_mixup == 'mixup_cutmix':
+           
+            # CutMix
+            x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
+            y_hat_cutmix = self(x_cutmix)
+            loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (1 - lam) * self.criterion(y_hat_cutmix, y2)
+            
+            # Mixup
+            y_onehot = F.one_hot(y, self.num_classes).float()
+            x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8)
+            y_hat_mixup = self(x_mixup)
+            loss_mixup = lam_mixup * self.criterion_bce(y_hat_mixup, y_onehot) + (1 - lam_mixup) * self.criterion_bce(y_hat_mixup, y_mixup)
+            
+            total_loss = 0.4 * loss_original + 0.3 * loss_cutmix + 0.3 * loss_mixup
+        
         else:
             total_loss = loss_original
             
@@ -185,6 +201,8 @@ class Sketch_Classifier(pl.LightningModule):
             opt = torch.optim.AdamW(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         elif self.optim == 'RAdam':
             opt = torch.optim.RAdam(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.optim == 'SGD':
+            opt = torch.optim.SGD(self.backbone.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay, momentum=0.9)
         else:
             raise ValueError('not a correct optim name', self.optim)
         
