@@ -1,25 +1,23 @@
 import os
 from argparse import ArgumentParser
 from time import gmtime, strftime
-
-import pytorch_lightning as pl
-import torch
 import yaml
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from pytorch_lightning.loggers import CSVLogger, WandbLogger
+
+import numpy as np
+import pandas as pd
+import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import CSVLogger, WandbLogger
 from torchvision import transforms
-
-from pl_trainer import Sketch_Classifier
-from utils.util import dotdict
-
 from sklearn.model_selection import StratifiedKFold
-
-import pandas as pd
 
 from data_sets import base_dataset
 from select_transforms import TransformSelector
+from pl_trainer import Sketch_Classifier
+from utils.util import dotdict
 
 
 # TODO
@@ -245,8 +243,6 @@ def main(args):
         num_workers=hparams.num_workers,
         shuffle=False,
     )
-
-    import numpy as np
 
     test_predictions = np.zeros((len(test_dataset), hparams.num_classes))
     test_logits = []
