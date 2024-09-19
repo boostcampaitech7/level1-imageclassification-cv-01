@@ -10,11 +10,17 @@ from pytorch_lightning.loggers import CSVLogger, WandbLogger
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-from torchvision.datasets.mnist import MNIST
 
-import data_module
 from pl_trainer import Sketch_Classifier
 from utils.util import dotdict
+
+from sklearn.model_selection import StratifiedKFold
+
+import pandas as pd
+
+from data_sets import base_dataset
+from select_transforms import TransformSelector
+
 
 # TODO
 # test option 따로 만들기
@@ -67,7 +73,7 @@ def parse_args(config):
     # 경윤---
     parser.add_argument('--cutmix_mixup', type=str, default=config.get('cutmix_mixup'))
     # 경윤---
-    parser.add_argument('--kfold_pl_train_return', type=str, default=False)
+    parser.add_argument('--kfold_pl_train_return', type=str, default=True)
     return parser.parse_args()
 
 
@@ -78,80 +84,90 @@ def main(args):
     # ------------
     # data
     # ------------
-    data_mod = data_module.SketchDataModule(**hparams)
-
-
-    # logger
-    csv_logger = CSVLogger(save_dir=hparams.output_dir, name='result')
-    my_loggers = [csv_logger]
-    if args.use_wandb:
-        import wandb
-        wandb.init(project="sketch classification", entity="nav_sketch", name=args.output_dir.replace('./result/',''))
-        wandb_logger = WandbLogger(save_dir=hparams.output_dir,
-                                   name=os.path.basename(hparams.output_dir), project='sketch classification')
-        my_loggers.append(wandb_logger)
-
-
-    # create model checkpoint callback
-    monitor = 'val_acc'
-    mode = 'max'
-    save_top_k = 1 # best 하나 저장 + Last 저장 
-    checkpoint_callback = [] 
-    checkpoint_callback.append(ModelCheckpoint(dirpath=hparams.output_dir, save_last=True,
-                                          save_top_k=save_top_k, monitor=monitor, mode=mode))
     
-    
-    if hparams.early_stopping>0:
-        early_stop = EarlyStopping(monitor="valid_loss", patience=hparams.early_stopping, verbose=False, mode="min")
-        checkpoint_callback.append(early_stop)
 
-    # ------------
-    # training
-    # ------------
-    trainer = pl.Trainer(logger=my_loggers,
-                        accelerator='cpu' if hparams.gpus == 0 else 'gpu',
-                        devices=None if hparams.gpus == 0 else hparams.gpus,
-                        callbacks=checkpoint_callback,
-                        max_epochs=hparams.epochs)
-    
-    trainer_mod = Sketch_Classifier(**hparams)
-    trainer.fit(trainer_mod, data_mod)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    # ------------
-    # testing
-    # ------------
+    train_info_df = pd.read_csv(hparams['traindata_info_file'])
 
-    best_model_path = checkpoint_callback[0].best_model_path
+    transform_selector = TransformSelector(hparams.transform_name)
+    train_transform = transform_selector.get_transform(True)
+    test_transform = transform_selector.get_transform(False)
 
-    best_model = Sketch_Classifier.load_from_checkpoint(best_model_path, **hparams)
+    for fold, (train_idx, val_idx) in enumerate(skf.split(train_info_df, train_info_df['target'])):
+        print('fold:',fold)
+        train_df = train_info_df.iloc[train_idx]
+        val_df = train_info_df.iloc[val_idx]
 
+        train_dataset = base_dataset.CustomDataset(hparams.train_data_dir,train_df,train_transform,False)
+        val_dataset = base_dataset.CustomDataset(hparams.train_data_dir,val_df,test_transform,False)
+        train_loader = DataLoader(train_dataset, batch_size=hparams.batch_size, num_workers=hparams.num_workers, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=hparams.batch_size, num_workers=hparams.num_workers, shuffle=False)
 
-    print('start predict')
-    
-    predictions = trainer.predict(best_model, datamodule=data_mod)
-    pred_list = [pred.cpu().numpy() for batch in predictions for pred in batch]
+        # logger
+        csv_logger = CSVLogger(save_dir=hparams.output_dir+f'_fold{fold}', name='result')
+        my_loggers = [csv_logger]
 
-    test_info = data_mod.test_dataset.info_df
-    test_info['target'] = pred_list
+        # create model checkpoint callback
+        monitor = 'val_acc'
+        mode = 'max'
+        save_top_k = 1 # best 하나 저장 + Last 저장 
+        checkpoint_callback = [] 
+        checkpoint_callback.append(ModelCheckpoint(dirpath=hparams.output_dir+f'_fold{fold}', save_last=True,
+                                            save_top_k=save_top_k, monitor=monitor, mode=mode))
+        
+        
+        if hparams.early_stopping>0:
+            early_stop = EarlyStopping(monitor="valid_loss", patience=hparams.early_stopping, verbose=False, mode="min")
+            checkpoint_callback.append(early_stop)
 
-    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)').astype(int)
-    test_info.sort_values(by=['ID'],inplace=True)
-    test_info = test_info[['ID','image_path','target']]
+        # ------------
+        # training
+        # ------------
+        trainer = pl.Trainer(logger=my_loggers,
+                            accelerator='cpu' if hparams.gpus == 0 else 'gpu',
+                            devices=None if hparams.gpus == 0 else hparams.gpus,
+                            callbacks=checkpoint_callback,
+                            max_epochs=hparams.epochs)
+        
+        trainer_mod = Sketch_Classifier(**hparams)
+        trainer.fit(trainer_mod, train_loader,val_loader)
+        # ------------
+        # testing
+        # ------------
 
-    test_info.to_csv(os.path.join(args.output_dir,"output.csv"), index=False)
-    
-    print('start predict validation dataset')
+        best_model_path = checkpoint_callback[0].best_model_path
 
-    data_mod.test_data_dir = data_mod.train_data_dir
-    data_mod.test_info_df = data_mod.val_info_df
-    data_mod.setup(stage='predict')
+        best_model = Sketch_Classifier.load_from_checkpoint(best_model_path, **hparams)
 
+        
+        print('start predict validation dataset')
 
-    validations = trainer.predict(best_model, dataloaders=data_mod.predict_dataloader())
-    val_list = [val.cpu().numpy() for batch in validations for val in batch]
-    val_info = data_mod.test_dataset.info_df
-    val_info['pred'] = val_list
-    val_info.to_csv(os.path.join(args.output_dir,"validation.csv"), index=False)
+        # data_mod.test_data_dir = data_mod.train_data_dir
+        # data_mod.test_info_df = data_mod.val_info_df
+        # data_mod.setup(stage='predict')
+
+        val_dataset = base_dataset.CustomDataset(hparams.train_data_dir,val_df,test_transform,True)
+        val_loader = DataLoader(val_dataset, batch_size=hparams.batch_size, num_workers=hparams.num_workers, shuffle=False)
+
+        validations = trainer.predict(best_model, dataloaders=val_loader)
+        
+        # pred_list = [pred.cpu().numpy() for batch in validations for pred, logit in batch]
+        # logit_list = [logit.cpu().numpy() for batch in validations for pred, logit in batch]
+
+        pred_list = []
+        logit_list = []
+
+        for batch in validations:
+            preds, logits = batch  # batch에서 preds와 logits를 가져옴
+            pred_list.extend(preds.cpu().numpy())  # 각 배치의 pred들을 리스트에 추가
+            logit_list.extend(logits.cpu().numpy())  # 각 배치의 logit들을 리스트에 추가
+
+        # val_info = val_df.iloc[:100]
+        val_info = val_df
+        val_info['pred'] = pred_list
+        val_info['logit'] = [logit.tolist() for logit in logit_list]
+        val_info.to_csv(os.path.join(args.output_dir+f'_fold{fold}',f"{fold}_validation.csv"), index=False)
 
 if __name__ == '__main__':
 
