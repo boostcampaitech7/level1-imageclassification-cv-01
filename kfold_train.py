@@ -152,6 +152,20 @@ def main(args):
             save_dir=hparams.output_dir + f"/fold{fold}", name="result"
         )
         my_loggers = [csv_logger]
+        if args.use_wandb:
+            import wandb
+
+            wandb.init(
+                project="sketch classification",
+                entity="nav_sketch",
+                name=args.output_dir.replace("./result/", ""),
+            )
+            wandb_logger = WandbLogger(
+                save_dir=hparams.output_dir,
+                name=os.path.basename(hparams.output_dir),
+                project="sketch classification",
+            )
+            my_loggers.append(wandb_logger)
 
         # create model checkpoint callback
         monitor = "val_acc"
