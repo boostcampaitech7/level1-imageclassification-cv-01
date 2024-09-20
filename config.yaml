@@ -23,6 +23,8 @@ loss: CE
 transform_name: torchvision
 optim: AdamW
 traindata_info_file: ./data/train_augmentations.csv
-k_folds: 5
-cutmix_mixup: mixup
 mixed_precision: True
+cutmix_mixup: mixup
+cutmix_ratio: 0.3
+mixup_ratio: 0.3
+n_splits: 5

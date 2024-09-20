@@ -11,11 +11,9 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
-import pandas as pd
-from sklearn.model_selection import StratifiedKFold
-import numpy as np
+
 import data_module
-from pl_trainer import Sketch_Classifier
+from pl_trainer_ensemble import Sketch_Classifier
 from utils.util import dotdict
 
 # TODO
@@ -67,7 +65,9 @@ def parse_args(config):
     parser.add_argument('--use_wandb', type=int, default=config.get('use_wandb')) # wandb 사용?
     parser.add_argument('--num_workers', type=str, default=config.get('num_workers')) # dataloader 옵션 관련 
     parser.add_argument('--cutmix_mixup', type=str, default=config.get('cutmix_mixup'))
-
+    parser.add_argument('--cutmix_ratio', type=int, default=config.get('cutmix_ratio'))
+    parser.add_argument('--mixup_ratio', type=int, default=config.get('mixup_ratio'))
+    parser.add_argument('--kfold_pl_train_return', type=str, default=False)
     return parser.parse_args()
 
 
@@ -105,87 +105,53 @@ def main(args):
         early_stop = EarlyStopping(monitor="valid_loss", patience=hparams.early_stopping, verbose=False, mode="min")
         checkpoint_callback.append(early_stop)
 
-    # 모델 설정
-    model_configs = [
-        {'model_type': 'timm', 'model_name': 'resnext50_32x4d'},
-        {'model_type': 'timm', 'model_name': 'swin_base_patch4_window7_224'},
-        {'model_type': 'timm', 'model_name': 'resnext101_32x4d'}
-    ]
-    # StratifiedKFold를 사용한 학습 및 예측
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    all_predictions = []
-    all_val_predictions = []
+    # ------------
+    # training
+    # ------------
+    trainer = pl.Trainer(logger=my_loggers,
+                        accelerator='cpu' if hparams.gpus == 0 else 'gpu',
+                        devices=None if hparams.gpus == 0 else hparams.gpus,
+                        callbacks=checkpoint_callback,
+                        max_epochs=hparams.epochs)
     
-    full_train_df = pd.concat([data_mod.train_info_df, data_mod.val_info_df])
-    
-    for fold, (train_idx, val_idx) in enumerate(skf.split(full_train_df, full_train_df["target"])):
-        print(f"Fold {fold+1}")
-        
-        train_fold_df = full_train_df.iloc[train_idx]
-        val_fold_df = full_train_df.iloc[val_idx]
-        
-        # 각 폴드에 대한 데이터셋 생성
-        data_mod.train_info_df = train_fold_df
-        data_mod.val_info_df = val_fold_df
-        data_mod.setup(stage="fit")
-        
-        # 다양한 모델 학습
-        fold_predictions = []
-        fold_val_predictions = []
+    trainer_mod = Sketch_Classifier(**hparams)
+    trainer.fit(trainer_mod, data_mod)
 
-        for config in model_configs:
-            model_hparams = hparams.copy()
-            model_hparams['model_type'] = config['model_type']
-            model_hparams['model_name'] = config['model_name']
-            model = Sketch_Classifier(**model_hparams)
-            # ------------
-            # training
-            # ------------
-            trainer = pl.Trainer(logger=my_loggers,
-                                 accelerator='cpu' if hparams.gpus == 0 else 'gpu',
-                                 devices=None if hparams.gpus == 0 else hparams.gpus,
-                                 callbacks=checkpoint_callback,
-                                 max_epochs=hparams.epochs)
-            trainer.fit(model, data_mod)
-                        
-            # # ------------
-            # # testing
-            # # ------------
-            best_model_path = checkpoint_callback.best_model_path
-            best_model = Sketch_Classifier.load_from_checkpoint(best_model_path, **hparams)
+    # ------------
+    # testing
+    # ------------
 
-            # 테스트 데이터 예측
-            data_mod.setup(stage='predict')
-            predictions = trainer.predict(best_model, datamodule=data_mod)
-            pred_list = [pred.cpu().numpy() for batch in predictions for pred in batch]
-            fold_predictions.append(pred_list)
-            
-            # 검증 데이터 예측
-            data_mod.setup(stage='fit')
-            val_predictions = trainer.predict(best_model, datamodule=data_mod)
-            val_pred_list = [pred.cpu().numpy() for batch in val_predictions for pred in batch]
-            fold_val_predictions.append(val_pred_list)
-        
-        # 각 폴드의 앙상블 결과 저장
-        all_predictions.append(np.mean(fold_predictions, axis=0))
-        all_val_predictions.append(np.mean(fold_val_predictions, axis=0))        
+    best_model_path = checkpoint_callback[0].best_model_path
+
+    best_model = Sketch_Classifier.load_from_checkpoint(best_model_path, **hparams)
+
+
+    print('start predict')
     
-    # 최종 앙상블 결과
-    final_predictions = np.mean(all_predictions, axis=0)
-    final_val_predictions = np.concatenate(all_val_predictions)
-        
-    # 테스트 결과 저장
+    predictions = trainer.predict(best_model, datamodule=data_mod)
+    pred_list = [pred.cpu().numpy() for batch in predictions for pred in batch]
+
     test_info = data_mod.test_dataset.info_df
-    test_info['target'] = final_predictions
-    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)').astype(int)
-    test_info.sort_values(by=['ID'], inplace=True)
-    test_info = test_info[['ID', 'image_path', 'target']]
-    test_info.to_csv(os.path.join(args.output_dir, "output.csv"), index=False)
+    test_info['target'] = pred_list
 
-    # 검증 결과 저장
-    val_info = full_train_df
-    val_info['pred'] = final_val_predictions
-    val_info.to_csv(os.path.join(args.output_dir, "validation.csv"), index=False)
+    test_info['ID'] = test_info['image_path'].str.extract(r'(\d+)').astype(int)
+    test_info.sort_values(by=['ID'],inplace=True)
+    test_info = test_info[['ID','image_path','target']]
+
+    test_info.to_csv(os.path.join(args.output_dir,"output.csv"), index=False)
+    
+    print('start predict validation dataset')
+
+    data_mod.test_data_dir = data_mod.train_data_dir
+    data_mod.test_info_df = data_mod.val_info_df
+    data_mod.setup(stage='predict')
+
+
+    validations = trainer.predict(best_model, dataloaders=data_mod.predict_dataloader())
+    val_list = [val.cpu().numpy() for batch in validations for val in batch]
+    val_info = data_mod.test_dataset.info_df
+    val_info['pred'] = val_list
+    val_info.to_csv(os.path.join(args.output_dir,"validation.csv"), index=False)
 
 if __name__ == '__main__':
 
