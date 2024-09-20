@@ -100,6 +100,9 @@ def parse_args(config):
     parser.add_argument("--cutmix_mixup", type=str, default=config.get("cutmix_mixup"))
     parser.add_argument("--kfold_pl_train_return", type=str, default=True)
     parser.add_argument("--n_splits", type=int, default=config.get("n_splits"))
+    parser.add_argument(
+        "--mixed_precision", type=bool, default=config.get("mixed_precision")
+    )
     return parser.parse_args()
 
 
@@ -193,13 +196,24 @@ def main(args):
         # ------------
         # training
         # ------------
-        trainer = pl.Trainer(
-            logger=my_loggers,
-            accelerator="cpu" if hparams.gpus == 0 else "gpu",
-            devices=None if hparams.gpus == 0 else hparams.gpus,
-            callbacks=checkpoint_callback,
-            max_epochs=hparams.epochs,
-        )
+
+        if hparams.mixed_precision:
+            trainer = pl.Trainer(
+                logger=my_loggers,
+                accelerator="ddp" if hparams.gpus > 1 else "dp",
+                precision=16,
+                devices=None if hparams.gpus == 0 else hparams.gpus,
+                callbacks=checkpoint_callback,
+                max_epochs=hparams.epochs,
+            )
+        else:
+            trainer = pl.Trainer(
+                logger=my_loggers,
+                accelerator="ddp" if hparams.gpus > 1 else "dp",
+                devices=None if hparams.gpus == 0 else hparams.gpus,
+                callbacks=checkpoint_callback,
+                max_epochs=hparams.epochs,
+            )
 
         trainer_mod = Sketch_Classifier(**hparams)
         trainer.fit(trainer_mod, train_loader, val_loader)
