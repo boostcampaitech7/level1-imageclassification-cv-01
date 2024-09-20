@@ -23,6 +23,5 @@ loss: CE
 transform_name: torchvision
 optim: Adam
 traindata_info_file: ./data/train.csv
-# 경윤---
 cutmix_mixup: mixup
-# 경윤---
+n_splits: 5

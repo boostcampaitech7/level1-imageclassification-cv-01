@@ -39,7 +39,7 @@ def cutmix(batch, alpha=0.9):
 
     return new_data, targets
 
-#경윤---
+
 def mixup(images, labels, alpha=1.0):
     # 배치 내 이미지와 레이블의 순서를 무작위로 섞음
     indices = torch.randperm(len(images))
@@ -54,7 +54,6 @@ def mixup(images, labels, alpha=1.0):
     mixedup_labels = lam * labels + (1 - lam) * shuffled_labels
     
     return mixedup_images, mixedup_labels, lam
-#경윤---
 
 
 class Sketch_Classifier(pl.LightningModule):
@@ -79,11 +78,9 @@ class Sketch_Classifier(pl.LightningModule):
 
         self.k_fold_option = kwargs['kfold_pl_train_return']
 
-        # 경윤---
         self.num_classes = kwargs['num_classes']
         self.criterion_bce = torch.nn.BCEWithLogitsLoss()
         self.cutmix_mixup = kwargs['cutmix_mixup']
-        # 경윤---
 
 
     def forward(self, x):
@@ -112,8 +109,7 @@ class Sketch_Classifier(pl.LightningModule):
             # 두 손실을 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_cutmix
 
-        elif self.cutmix_mixup == 'mixup':
-            ### 경윤---            
+        elif self.cutmix_mixup == 'mixup':          
 
             # 라벨을 원-핫 인코딩으로 변환 (Mixup에만 사용)
             y_onehot = F.one_hot(y, self.num_classes).float()
@@ -130,7 +126,6 @@ class Sketch_Classifier(pl.LightningModule):
 
             # 총 손실 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_mixup
-            ### 경윤---
         
         elif self.cutmix_mixup == 'cutmix_mixup' or self.cutmix_mixup == 'mixup_cutmix':
            

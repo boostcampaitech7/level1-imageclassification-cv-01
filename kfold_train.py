@@ -97,10 +97,9 @@ def parse_args(config):
     parser.add_argument(
         "--num_workers", type=str, default=config.get("num_workers")
     )  # dataloader 옵션 관련
-    # 경윤---
     parser.add_argument("--cutmix_mixup", type=str, default=config.get("cutmix_mixup"))
-    # 경윤---
     parser.add_argument("--kfold_pl_train_return", type=str, default=True)
+    parser.add_argument("--n_splits", type=int, default=True)
     return parser.parse_args()
 
 
@@ -111,7 +110,7 @@ def main(args):
     # data
     # ------------
 
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedKFold(n_splits=hparams.n_splits, shuffle=True, random_state=42)
 
     train_info_df = pd.read_csv(hparams["traindata_info_file"])
 
@@ -236,8 +235,8 @@ def main(args):
             pred_list.extend(preds.cpu().numpy())  # 각 배치의 pred들을 리스트에 추가
             logit_list.extend(logits.cpu().numpy())  # 각 배치의 logit들을 리스트에 추가
 
+        # val_info = val_df.iloc[:100]
         val_info = val_df
-        # val_info = val_df
         val_info["pred"] = pred_list
         val_info.to_csv(
             os.path.join(args.output_dir + f"/fold{fold}", f"{fold}_validation.csv"),
@@ -247,6 +246,7 @@ def main(args):
     print("start predict test dataset")
 
     test_info_df = pd.read_csv(hparams["testdata_info_file"])
+    # test_info_df = test_info_df.iloc[:100]
     test_dataset = base_dataset.CustomDataset(
         hparams.test_data_dir, test_info_df, test_transform, True
     )
