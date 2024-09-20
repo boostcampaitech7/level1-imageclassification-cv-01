@@ -1,0 +1,26 @@
+exp_name: v2
+epochs: 100
+learning_rate: 0.0005
+gpus: 0
+model_type: timm
+# for torchvision and timm
+model_name: resnext50_32x4d
+pretrained: True
+train_data_dir: ./data/train_augmentations
+test_data_dir: ./data/test
+base_output_dir: ./result
+num_classes: 500
+use_wandb: True
+data_name: base
+num_workers: 8
+testdata_info_file: ./data/test.csv
+cos_sch: 20
+early_stopping: 5
+warm_up: 10
+batch_size: 32
+weight_decay: 0.0
+loss: Focal
+transform_name: torchvision
+optim: AdamW
+traindata_info_file: ./data/train_augmentations.csv
+cutmix_mixup: cutmix
