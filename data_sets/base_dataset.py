@@ -1,10 +1,10 @@
-import pandas as pd
-from typing import Callable, Union, Tuple
-import cv2
 import os
+from typing import Callable, Union, Tuple
 
-from torch.utils.data import DataLoader, Dataset
+import pandas as pd
+import cv2
 import torch
+from torch.utils.data import DataLoader, Dataset
 
 
 class CustomDataset(Dataset):
