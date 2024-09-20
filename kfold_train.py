@@ -99,7 +99,7 @@ def parse_args(config):
     )  # dataloader 옵션 관련
     parser.add_argument("--cutmix_mixup", type=str, default=config.get("cutmix_mixup"))
     parser.add_argument("--kfold_pl_train_return", type=str, default=True)
-    parser.add_argument("--n_splits", type=int, default=True)
+    parser.add_argument("--n_splits", type=int, default=config.get("n_splits"))
     return parser.parse_args()
 
 
