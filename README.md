@@ -1,7 +1,7 @@
 # BoostCamp AI Tech 7th CV-01 Project
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/06679804-27c5-49ae-851a-7b06f552ae47" alt="image" width="300"/>
+  <img src="https://github.com/user-attachments/assets/301a97b9-2caf-4ae2-a895-17ee0b1a5711" alt="image" width="300"/>
 </p>
 
 ## Project Overview
