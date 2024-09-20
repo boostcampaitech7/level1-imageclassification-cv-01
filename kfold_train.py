@@ -200,7 +200,7 @@ def main(args):
         if hparams.mixed_precision:
             trainer = pl.Trainer(
                 logger=my_loggers,
-                accelerator="ddp" if hparams.gpus > 1 else "dp",
+                accelerator="cpu" if hparams.gpus == 0 else "gpu",
                 precision=16,
                 devices=None if hparams.gpus == 0 else hparams.gpus,
                 callbacks=checkpoint_callback,
@@ -209,7 +209,7 @@ def main(args):
         else:
             trainer = pl.Trainer(
                 logger=my_loggers,
-                accelerator="ddp" if hparams.gpus > 1 else "dp",
+                accelerator="cpu" if hparams.gpus == 0 else "gpu",
                 devices=None if hparams.gpus == 0 else hparams.gpus,
                 callbacks=checkpoint_callback,
                 max_epochs=hparams.epochs,
