@@ -112,15 +112,10 @@ class EnsembleModel(pl.LightningModule):
             for param in model.parameters():
                 param.requires_grad = False
            
-        
         # Create branches
         self.rex_branch = self.create_branch(self.rex_base)
         self.swin_branch = self.create_branch(self.swin_base)
-        
-        
-        print('#######################rex_base ', self.rex_branch)
-        print('#######################swin_base', self.swin_branch)
-     
+
         # Determine the output size of each branch
         with torch.no_grad():
             dummy_input = torch.randn(1, 3, 224, 224)
@@ -137,31 +132,26 @@ class EnsembleModel(pl.LightningModule):
         )
         
     def create_branch(self, base_model):
-        # if isinstance(base_model, timm.models.swin_transformer.SwinTransformer):
-        #     return nn.Sequential(
-        #         base_model,
-        #         nn.AdaptiveAvgPool2d(1),
-        #         nn.Flatten(),
-        #         nn.Dropout(0.5)
-        #     )
-        # else:
-        return nn.Sequential(
-            base_model,
-            # nn.AdaptiveAvgPool2d(1),  # Equivalent to GlobalAveragePooling2D
-            # nn.Flatten(),
-            nn.Dropout(0.5)
-        )
+        if isinstance(base_model, timm.models.swin_transformer.SwinTransformer):
+            return nn.Sequential(
+                base_model,
+                nn.Flatten(start_dim=1),  # [32, 7, 7, 1024] -> [32, 7*7*1024]
+                nn.Dropout(0.5)
+            )
+        else:  # ResNeXt의 경우
+            return nn.Sequential(
+                base_model,
+                nn.Dropout(0.5)
+            )
         
     def forward(self, x):
         
-        print("###############Input shape:", x.shape)
-
         # Extract features from each branch
         rex_features = self.rex_branch(x)
         swin_features = self.swin_branch(x)
         
-        print(f"###############rex_branch shape is {rex_features.shape}")
-        print(f"###############swin_branch shape is {swin_features.shape}")
+        # print(f"###############rex_branch shape is {rex_features.shape}")
+        # print(f"###############swin_branch shape is {swin_features.shape}")
         
         # Concatenate features
         combined_features = torch.cat((rex_features, swin_features), dim=1)
@@ -212,7 +202,7 @@ class Sketch_Classifier(pl.LightningModule):
         if self.cutmix_mixup == 'cutmix':
             
             # CutMix를 적용한 새로운 데이터 생성
-            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_rati=self.cutmix_ratio)
+            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_ratio=self.cutmix_ratio)
             
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
@@ -258,7 +248,7 @@ class Sketch_Classifier(pl.LightningModule):
            
             # CutMix
             # CutMix를 적용한 새로운 데이터 생성
-            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_rati=self.cutmix_ratio)
+            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_ratio=self.cutmix_ratio)
             
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
