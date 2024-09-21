@@ -105,6 +105,11 @@ def parse_args(config):
     )
     parser.add_argument("--cutmix_ratio", type=int, default=config.get("cutmix_ratio"))
     parser.add_argument("--mixup_ratio", type=int, default=config.get("mixup_ratio"))
+    parser.add_argument(
+        "--accumulate_grad_batches",
+        type=int,
+        default=config.get("accumulate_grad_batches"),
+    )
     return parser.parse_args()
 
 
@@ -199,23 +204,19 @@ def main(args):
         # training
         # ------------
 
-        if hparams.mixed_precision:
-            trainer = pl.Trainer(
-                logger=my_loggers,
-                accelerator="cpu" if hparams.gpus == 0 else "gpu",
-                precision=16,
-                devices=None if hparams.gpus == 0 else hparams.gpus,
-                callbacks=checkpoint_callback,
-                max_epochs=hparams.epochs,
-            )
-        else:
-            trainer = pl.Trainer(
-                logger=my_loggers,
-                accelerator="cpu" if hparams.gpus == 0 else "gpu",
-                devices=None if hparams.gpus == 0 else hparams.gpus,
-                callbacks=checkpoint_callback,
-                max_epochs=hparams.epochs,
-            )
+        trainer = pl.Trainer(
+            logger=my_loggers,
+            accelerator="cpu" if hparams.gpus == 0 else "gpu",
+            precision=16 if hparams.gpus != 0 else 32,  # CPU에서는 32-bit precision
+            devices=None if hparams.gpus == 0 else hparams.gpus,
+            callbacks=[checkpoint_callback],  # 콜백 리스트로 묶는 것이 좋음
+            max_epochs=hparams.epochs,
+            accumulate_grad_batches=(
+                1
+                if hparams.accumulate_grad_batches <= 0
+                else hparams.accumulate_grad_batches
+            ),
+        )
 
         trainer_mod = Sketch_Classifier(**hparams)
         trainer.fit(trainer_mod, train_loader, val_loader)
