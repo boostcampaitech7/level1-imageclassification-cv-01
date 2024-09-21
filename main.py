@@ -167,7 +167,7 @@ def main(args):
         accelerator="cpu" if hparams.gpus == 0 else "gpu",
         precision=16 if hparams.gpus != 0 else 32,  # CPU에서는 32-bit precision
         devices=None if hparams.gpus == 0 else hparams.gpus,
-        callbacks=[checkpoint_callback],  # 콜백 리스트로 묶는 것이 좋음
+        callbacks=checkpoint_callback,  # 콜백 리스트로 묶는 것이 좋음
         max_epochs=hparams.epochs,
         accumulate_grad_batches=(
             1
