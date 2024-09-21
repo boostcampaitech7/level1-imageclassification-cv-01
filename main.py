@@ -114,7 +114,7 @@ def main(args):
         trainer = pl.Trainer(
             logger=my_loggers,
             accelerator="cpu" if hparams.gpus == 0 else "gpu",
-            precision=16,
+            precision='16-mixed',
             devices=None if hparams.gpus == 0 else hparams.gpus,
             callbacks=checkpoint_callback,
             max_epochs=hparams.epochs,
