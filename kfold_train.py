@@ -103,6 +103,8 @@ def parse_args(config):
     parser.add_argument(
         "--mixed_precision", type=bool, default=config.get("mixed_precision")
     )
+    parser.add_argument("--cutmix_ratio", type=int, default=config.get("cutmix_ratio"))
+    parser.add_argument("--mixup_ratio", type=int, default=config.get("mixup_ratio"))
     return parser.parse_args()
 
 

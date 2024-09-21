@@ -14,7 +14,11 @@ import net
 from losses import get_loss
 
 
-def cutmix(batch, alpha=0.9):
+def cutmix(batch, alpha=0.9, apply_ratio=1.0):
+
+    # 확률적으로 cutmix 적용
+    if np.random.rand() > apply_ratio:
+        return batch  # cutmix를 적용하지 않음
 
     data, targets = batch
     indices = torch.randperm(data.size(0))
@@ -42,7 +46,11 @@ def cutmix(batch, alpha=0.9):
     return new_data, targets
 
 
-def mixup(images, labels, alpha=1.0):
+def mixup(images, labels, alpha=1.0, apply_ratio=1.0):
+    # 확률적으로 mixup을 적용할지를 결정
+    if np.random.rand() > apply_ratio:
+        return images, labels, None  # mixup을 적용하지 않음
+
     # 배치 내 이미지와 레이블의 순서를 무작위로 섞음
     indices = torch.randperm(len(images))
     shuffled_images = images[indices]
@@ -90,6 +98,8 @@ class Sketch_Classifier(pl.LightningModule):
         self.num_classes = kwargs["num_classes"]
         self.criterion_bce = torch.nn.BCEWithLogitsLoss()
         self.cutmix_mixup = kwargs["cutmix_mixup"]
+        self.cutmix_ratio = kwargs["cutmix_ratio"]
+        self.mixup_ratio = kwargs["mixup_ratio"]
 
     def forward(self, x):
         # use forward for inference/predictions
@@ -106,7 +116,9 @@ class Sketch_Classifier(pl.LightningModule):
         if self.cutmix_mixup == "cutmix":
 
             # CutMix를 적용한 새로운 데이터 생성
-            x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
+            x_cutmix, (y1, y2, lam) = cutmix(
+                batch, alpha=0.9, apply_ratio=self.cutmix_ratio
+            )
 
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
@@ -125,7 +137,9 @@ class Sketch_Classifier(pl.LightningModule):
             y_onehot = F.one_hot(y, self.num_classes).float()
 
             # Mixup 적용
-            x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8)
+            x_mixup, y_mixup, lam_mixup = mixup(
+                x, y_onehot, alpha=0.8, apply_ratio=self.mixup_ratio
+            )
 
             # Mixup 데이터에 대한 예측
             y_hat_mixup = self(x_mixup)
