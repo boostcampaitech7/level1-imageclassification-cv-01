@@ -3,10 +3,9 @@ epochs: 100
 learning_rate: 0.0005
 gpus: 0
 model_type: timm
-# for torchvision and timm
-model_name: coatnet_bn_0_rw_224
+model_name: vit_base_resnet50_224_in21k
 pretrained: True
-train_data_dir: ./data/train_augmentations
+train_data_dir: ./data/train_clean_augmentations
 test_data_dir: ./data/test
 base_output_dir: ./result
 num_classes: 500
@@ -14,17 +13,18 @@ use_wandb: True
 data_name: base
 num_workers: 8
 testdata_info_file: ./data/test.csv
-cos_sch: 20
+cos_sch: 80
 early_stopping: 5
-warm_up: 10
-batch_size: 32
+warm_up: 20
+batch_size: 16
 weight_decay: 0.0
-loss: CE 
+loss: Focal
 transform_name: torchvision
 optim: AdamW
-traindata_info_file: ./data/train_augmentations.csv
+traindata_info_file: ./data/train_clean_augmentations.csv
 mixed_precision: True
-cutmix_mixup: mixup
+cutmix_mixup: mixup_cutmix
 cutmix_ratio: 0.3
 mixup_ratio: 0.3
 n_splits: 5
+accumulate_grad_batches: 4
