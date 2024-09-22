@@ -4,7 +4,7 @@ from torchvision import models
 import timm
 
 from backbone.base_backbone import SimpleCNN
-from backbone.conv_backbone import MNIST_conv
+from backbone.clip_backbone import CLIP_backbone
 
 
 # def build_model(model_name='base',**kwargs):
@@ -34,6 +34,9 @@ class ModelSelector:
 
         elif model_type == "timm":
             self.model = TimmModel(model_name, num_classes, pretrained)
+        
+        elif model_type == "clip":
+            self.model = CLIP_backbone(model_name,num_classes)
 
         else:
             raise ValueError("Unknown model type specified.")

@@ -233,25 +233,25 @@ class Sketch_Classifier(pl.LightningModule):
 
         if self.optim == "Adam":
             opt = torch.optim.Adam(
-                self.backbone.parameters(),
+                filter(lambda p: p.requires_grad, self.backbone.parameters()),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
             )
         elif self.optim == "AdamW":
             opt = torch.optim.AdamW(
-                self.backbone.parameters(),
+                filter(lambda p: p.requires_grad, self.backbone.parameters()),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
             )
         elif self.optim == "RAdam":
             opt = torch.optim.RAdam(
-                self.backbone.parameters(),
+                filter(lambda p: p.requires_grad, self.backbone.parameters()),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
             )
         elif self.optim == "SGD":
             opt = torch.optim.SGD(
-                self.backbone.parameters(),
+                filter(lambda p: p.requires_grad, self.backbone.parameters()),
                 lr=self.learning_rate,
                 weight_decay=self.weight_decay,
                 momentum=0.9,
