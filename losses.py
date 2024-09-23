@@ -4,9 +4,9 @@ import torch.nn.functional as F
 
 def get_loss(loss_name='CE',**kwargs):
     if loss_name == 'CE':
-        return CELoss()
+        return CELoss(kwargs['label_smoothing'])
     elif loss_name == 'Focal':
-        return FocalLoss()
+        return FocalLoss(kwargs['alpha_val'],kwargs['gamma_val'])
     else:
         raise ValueError('not a correct model name', loss_name)
 
@@ -15,9 +15,9 @@ class CELoss(nn.Module):
     """
     모델의 손실함수를 계산하는 클래스.
     """
-    def __init__(self):
+    def __init__(self,label_smoothing):
         super(CELoss, self).__init__()
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn = nn.CrossEntropyLoss(label_smoothing = label_smoothing)
 
     def forward(
         self, 
