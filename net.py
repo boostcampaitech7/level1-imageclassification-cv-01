@@ -5,6 +5,7 @@ import timm
 
 from backbone.base_backbone import SimpleCNN
 from backbone.clip_backbone import CLIP_backbone
+from backbone.swin_backbone import ModifiedSwinTransformer
 import math
 
 import torch
@@ -53,6 +54,9 @@ class ModelSelector:
 
         elif model_type == 'cnnvit':
             self.model = CNNViTModel(num_cnn_classes, num_classes, pretrained)
+        
+        elif model_type == 'swin':
+            self.model = ModifiedSwinTransformer(num_classes, num_classes_large=8, num_classes_small=154)
         
         else:
             raise ValueError("Unknown model type specified.")

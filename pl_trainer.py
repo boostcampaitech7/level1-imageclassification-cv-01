@@ -15,10 +15,9 @@ from losses import get_loss
 
 
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
-
     # 확률적으로 cutmix 적용
-    if np.random.rand() > apply_ratio:
-        return batch  # cutmix를 적용하지 않음
+    # if np.random.rand() > apply_ratio:
+    #     return batch  # cutmix를 적용하지 않음
 
     data, targets = batch
     indices = torch.randperm(data.size(0))
@@ -42,7 +41,6 @@ def cutmix(batch, alpha=0.9, apply_ratio=1.0):
         :, :, y0:y1, x0:x1
     ]  # in-place 연산 방지
     targets = (targets, shuffled_targets, lam)
-
     return new_data, targets
 
 
@@ -106,32 +104,44 @@ class Sketch_Classifier(pl.LightningModule):
         self.cutmix_mixup = kwargs["cutmix_mixup"]
         self.cutmix_ratio = kwargs["cutmix_ratio"]
         self.mixup_ratio = kwargs["mixup_ratio"]
+        self.model_type = kwargs["model_type"]
 
     def forward(self, x):
         embedding = self.backbone(x)
         return embedding
 
     def training_step(self, batch, batch_idx):
+        if self.model_type == 'swin':
+            x, y, large_label, small_label = batch
+            y_hat_original, large_output, small_output = self(x)
+            loss_original = self.criterion(y_hat_original, y, large_output, large_label, small_output, small_label)
 
-        x, y = batch
-        y_hat_original = self(x)
-        loss_original = self.criterion(y_hat_original, y)
+        else:
+            x, y = batch
+            y_hat_original = self(x)
+            loss_original = self.criterion(y_hat_original, y)
+        
         total_acc = self.accuracy(y_hat_original, y)
 
         if self.cutmix_mixup == "cutmix":
-
+            
             # CutMix를 적용한 새로운 데이터 생성
             x_cutmix, (y1, y2, lam) = cutmix(
-                batch, alpha=0.9, apply_ratio=self.cutmix_ratio
+                (x, y), alpha=0.9, apply_ratio=self.cutmix_ratio
             )
 
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
 
             # Loss 계산 (CutMix 데이터에 대한 손실)
-            loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (
+            if self.model_type == 'swin':
+                loss_cutmix = lam * self.criterion(y_hat_cutmix, y1, large_output, large_label, small_output, small_label) + (
                 1 - lam
-            ) * self.criterion(y_hat_cutmix, y2)
+                ) * self.criterion(y_hat_cutmix, y2, large_output, large_label, small_output, small_label)
+            else:
+                loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (
+                1 - lam
+                ) * self.criterion(y_hat_cutmix, y2)
 
             # 두 손실을 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_cutmix
@@ -160,7 +170,7 @@ class Sketch_Classifier(pl.LightningModule):
         elif self.cutmix_mixup == "cutmix_mixup" or self.cutmix_mixup == "mixup_cutmix":
 
             # CutMix
-            x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
+            x_cutmix, (y1, y2, lam) = cutmix((x, y), alpha=0.9)
             y_hat_cutmix = self(x_cutmix)
             loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (
                 1 - lam
@@ -198,9 +208,15 @@ class Sketch_Classifier(pl.LightningModule):
     #     return None
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        if self.model_type == 'swin':
+            x, y, large_label, small_label = batch
+            y_hat, large_output, small_output = self(x)
+            loss = self.criterion(y_hat, y, large_output, large_label, small_output, small_label)
+
+        else:
+            x, y = batch
+            y_hat = self(x)
+            loss = self.criterion(y_hat, y)
 
         preds = torch.argmax(y_hat, dim=1)
         acc = self.accuracy(y_hat, y)
@@ -224,7 +240,10 @@ class Sketch_Classifier(pl.LightningModule):
     #     self.log('test_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
     def predict_step(self, batch, batch_idx):
-        x = self(batch)
+        if self.model_type == 'swin':
+            x, _, _ = self(batch)
+        else:
+            x = self(batch)
         logits = F.softmax(x, dim=1)
         preds = logits.argmax(dim=1)
 
