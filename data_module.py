@@ -30,13 +30,23 @@ class SketchDataModule(pl.LightningDataModule):
         transform_selector = TransformSelector(kwargs["transform_name"])
         self.train_info_df = pd.read_csv(kwargs["traindata_info_file"])
         self.test_info_df = pd.read_csv(kwargs["testdata_info_file"])
+        
+        ## 특정 class sample이 1일 때 해결 
+        class_counts = self.train_info_df["target"].value_counts()
+        low_sample_classes = class_counts[class_counts < 2].index
+        low_sample_df = self.train_info_df[self.train_info_df["target"].isin(low_sample_classes)]
+        remaining_df = self.train_info_df[~self.train_info_df["target"].isin(low_sample_classes)]
+
 
         self.train_info_df, self.val_info_df = train_test_split(
-            self.train_info_df,
+            remaining_df,
             test_size=0.2,  # validation 비율 (20%)
             random_state=42,  # 랜덤 시드 고정
-            stratify=self.train_info_df["target"],  # 라벨을 기준으로 비율 유지
+            stratify=remaining_df["target"],  # 라벨을 기준으로 비율 유지
         )
+        self.train_info_df = pd.concat([self.train_info_df, low_sample_df])
+
+
 
         self.train_transform = transform_selector.get_transform(True)  # is train
         self.test_transform = transform_selector.get_transform(False)
