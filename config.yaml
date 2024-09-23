@@ -38,6 +38,7 @@ loss: CE
 transform_name: albumentations
 optim: AdamW
 mixed_precision: True
+num_cnn_classes: 20
 
 ######################
 # 데이터 증강 설정

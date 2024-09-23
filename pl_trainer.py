@@ -72,10 +72,16 @@ class Sketch_Classifier(pl.LightningModule):
         self.save_hyperparameters()
 
         self.model_select = net.ModelSelector(
+            
             kwargs["model_type"],
+            
             kwargs["model_name"],
+            
             kwargs["num_classes"],
+            
             kwargs["pretrained"],
+
+            kwargs["num_cnn_classes"],
         )
 
         # self.backbone = net.build_model(model_name = kwargs['arch'])
@@ -102,7 +108,6 @@ class Sketch_Classifier(pl.LightningModule):
         self.mixup_ratio = kwargs["mixup_ratio"]
 
     def forward(self, x):
-        # use forward for inference/predictions
         embedding = self.backbone(x)
         return embedding
 
