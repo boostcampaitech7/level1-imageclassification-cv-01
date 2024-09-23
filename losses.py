@@ -4,9 +4,9 @@ import torch.nn.functional as F
 
 def get_loss(loss_name='CE',**kwargs):
     if loss_name == 'CE':
-        return CELoss(kwargs['label_smoothing'])
+        return CELoss(kwargs.get('label_smoothing',0.0))
     elif loss_name == 'Focal':
-        return FocalLoss(kwargs['alpha_val'],kwargs['gamma_val'])
+        return FocalLoss(kwargs.get('alpha_val',0.25),kwargs.get('gamma_val',2.0))
     else:
         raise ValueError('not a correct model name', loss_name)
 
