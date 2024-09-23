@@ -79,6 +79,8 @@ def parse_args(config):
         "--learning_rate", type=float, default=config.get("learning_rate")
     )
 
+    parser.add_argument('--num_cnn_classes', type=int, default=config.get('num_cnn_classes'))  # CNN 분류 클래스 수
+
     parser.add_argument(
         "--model_type", type=str, default=config.get("model_type")
     )  # backbone 타입
