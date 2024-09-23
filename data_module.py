@@ -123,6 +123,10 @@ def train_data(
         return folder_dataset.CustomImageFolderDataset(
             train_data_dir, transform=transforms
         )
+    elif data_name == 'swin_data':
+        return base_dataset.SwinCustomDataset(
+            train_data_dir, info_df, transforms, is_inference
+        )
     else:
         raise ValueError("not a correct train data name", data_name)
 
@@ -140,6 +144,10 @@ def val_data(
         return folder_dataset.CustomImageFolderDataset(
             train_data_dir, transform=transforms
         )
+    elif data_name == 'swin_data':
+        return base_dataset.SwinCustomDataset(
+            train_data_dir, info_df, transforms, is_inference
+        )
     else:
         raise ValueError("not a correct train data name", data_name)
 
@@ -154,6 +162,10 @@ def test_data(
     elif data_name == "folder":
         return folder_dataset.CustomImageFolderDataset(
             test_data_dir, transform=transforms
+        )
+    elif data_name == 'swin_data':
+        return base_dataset.SwinCustomDataset(
+            test_data_dir, info_df, transforms, is_inference
         )
     else:
         raise ValueError("not a correct test data name", data_name)

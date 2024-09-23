@@ -13,8 +13,6 @@ import torch.nn as nn
 import torchvision.models as models
 from torchvision.models import vit_b_16
 
-
-
 # def build_model(model_name='base',**kwargs):
 #     if model_name == 'mnist_linear':
 #         return SimpleCNN(**kwargs)
