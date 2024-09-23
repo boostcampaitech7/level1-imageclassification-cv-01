@@ -164,7 +164,7 @@ def main(args):
             else:
                 args.alpha_val = 0
                 args.gamma_val = 0
-            run.name = f"{args.learning_rate}_{args.batch_size}_{args.optim}_{args.loss}_cutmix({args.cutmix_ratio})_mixup({args.mixup_ratio})_label_smoothing({args.label_smoothing})_Focal_alpha{args.alpha_val, args.gamma_val}"
+            run.name = f"lr({args.learning_rate:.3e})_bs{args.batch_size}_{args.optim}_{args.loss}_cutmix({args.cutmix_ratio:.3e})_mixup({args.mixup_ratio:.3e})_label_smoothing({args.label_smoothing})_Focal_alpha{args.alpha_val, args.gamma_val}"
             
 
     hparams = dotdict(vars(args))
