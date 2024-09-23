@@ -183,6 +183,10 @@ def main(args):
         )
         my_loggers.append(wandb_logger)
 
+    checkpoint_dir = os.path.join(hparams.output_dir, run.name)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+
     # create model checkpoint callback
     monitor = "val_acc"  # validation loss를 모니터링 
     mode = "min"
@@ -190,7 +194,7 @@ def main(args):
     checkpoint_callback = []
     checkpoint_callback.append(
         ModelCheckpoint(
-            dirpath=hparams.output_dir,
+            dirpath=checkpoint_dir,
             save_last=True,
             save_top_k=save_top_k,
             monitor=monitor,
@@ -244,7 +248,7 @@ def main(args):
     test_info.sort_values(by=["ID"], inplace=True)
     test_info = test_info[["ID", "image_path", "target"]]
     
-    test_info.to_csv(os.path.join(args.output_dir, "output.csv"), index=False)
+    test_info.to_csv(os.path.join(checkpoint_dir, "output.csv"), index=False)
 
     print("start predict validation dataset")
     
@@ -256,7 +260,7 @@ def main(args):
     val_list = [val.cpu().numpy() for batch in validations for val in batch]
     val_info = data_mod.test_dataset.info_df
     val_info["pred"] = val_list
-    val_info.to_csv(os.path.join(args.output_dir, "validation.csv"), index=False)
+    val_info.to_csv(os.path.join(checkpoint_dir, "validation.csv"), index=False)
 
 if __name__ == "__main__":
 
