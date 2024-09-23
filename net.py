@@ -3,16 +3,14 @@ import torch.nn as nn
 from torchvision import models
 import timm
 
-from backbone.base_backbone import SimpleCNN
-from backbone.clip_backbone import CLIP_backbone
-import math
+from backbone import SimpleCNN
+from backbone import CLIP_backbone
+from backbone import EnsembleModel
 
 import torch
 import torch.nn as nn
 import torchvision.models as models
 from torchvision.models import vit_b_16
-
-
 
 # def build_model(model_name='base',**kwargs):
 #     if model_name == 'mnist_linear':
@@ -51,9 +49,9 @@ class ModelSelector:
         elif model_type == "clip":
             self.model = CLIP_backbone(model_name,num_classes)
 
-        elif model_type == 'cnnvit':
-            self.model = CNNViTModel(num_cnn_classes, num_classes, pretrained)
-        
+        elif model_type == 'ensemble':
+            self.model = EnsembleModel(num_classes)
+
         else:
             raise ValueError("Unknown model type specified.")
 
