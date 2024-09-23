@@ -19,7 +19,6 @@ from utils.util import dotdict
 import wandb
 
 def run_sweep():
-
     sweep_config = {
         "name": "ResnextTesting",
         "method": "bayes", # random -> bayes 
@@ -138,7 +137,7 @@ def parse_args(config):
         default=config.get("accumulate_grad_batches"),
     )
     parser.add_argument("--sweep_mode", type=bool, default=config.get("sweep_mode"))
-
+    parser.add_argument("--model_count", type=int, default=0)
     return parser.parse_args()
 
 
@@ -164,8 +163,9 @@ def main(args):
             else:
                 args.alpha_val = 0
                 args.gamma_val = 0
-            run.name = f"lr({args.learning_rate:.3e})_bs{args.batch_size}_{args.optim}_{args.loss}_cutmix({args.cutmix_ratio:.3e})_mixup({args.mixup_ratio:.3e})_label_smoothing({args.label_smoothing})_Focal_alpha{args.alpha_val, args.gamma_val}"
-            
+            args.model_count += 1
+            #run.name = f"lr({args.learning_rate:.3e})_bs{args.batch_size}_{args.optim}_{args.loss}_cutmix({args.cutmix_ratio:.3e})_mixup({args.mixup_ratio:.3e})_label_smoothing({args.label_smoothing})_Focal_alpha{args.alpha_val, args.gamma_val}"
+            run.name = 'model_'+str(args.model_count)
 
     hparams = dotdict(vars(args))
 
