@@ -28,6 +28,5 @@ class Coca_backbone(nn.Module):
         self.fc = nn.Linear(self.model.visual.ln_post.normalized_shape[0],num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        print(x.shape)
         out = self.model.visual(x)[0]
         return self.fc(out)
