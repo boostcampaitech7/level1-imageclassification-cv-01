@@ -10,8 +10,8 @@ import pytorch_lightning as pl
 import torchmetrics
 from sklearn.metrics import f1_score
 
-import src.models.model_selector as model_selector
-from src.training.losses.losses import get_loss
+from ..models import model_selector
+from losses import LossFactory
 
 
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
@@ -94,15 +94,10 @@ class Sketch_Classifier(pl.LightningModule):
         self.save_hyperparameters()
 
         self.model_select = model_selector.ModelSelector(
-            
             kwargs["model_type"],
-            
             kwargs["model_name"],
-            
             kwargs["num_classes"],
-            
             kwargs["pretrained"],
-
             kwargs["num_cnn_classes"],
         )
 
@@ -114,14 +109,14 @@ class Sketch_Classifier(pl.LightningModule):
             task="multiclass", num_classes=kwargs["num_classes"]
         )
         # self.criterion = nn.CrossEntropyLoss()
-        self.criterion = get_loss(loss_name=kwargs["loss"], **kwargs)
+        self.criterion = LossFactory(loss_name=kwargs["loss"], **kwargs)
         self.optim = kwargs["optim"]
         self.weight_decay = kwargs["weight_decay"]
         self.cos_sch = kwargs["cos_sch"]
         self.warm_up = kwargs["warm_up"]
         self.output_dir = kwargs["output_dir"]
 
-        self.k_fold_option = kwargs["kfold_pl_train_return"]
+        # self.k_fold_option = kwargs["kfold_pl_train_return"]
 
         self.num_classes = kwargs["num_classes"]
         self.criterion_bce = torch.nn.BCEWithLogitsLoss()
@@ -299,10 +294,10 @@ class Sketch_Classifier(pl.LightningModule):
         logits = F.softmax(x, dim=1)
         preds = logits.argmax(dim=1)
 
-        if self.k_fold_option:
-            return preds, logits
-        else:
-            return preds
+        # if self.k_fold_option:
+        #     return preds, logits
+        # else:
+        #     return preds
 
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()

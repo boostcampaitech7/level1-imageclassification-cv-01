@@ -52,4 +52,5 @@ mixup_ratio: 0.2
 ######################
 n_splits: 5
 accumulate_grad_batches: 8
-sweep_mode: True
+sweep_mode: False
+use_kfold: False
