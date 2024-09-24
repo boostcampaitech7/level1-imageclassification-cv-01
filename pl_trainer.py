@@ -15,55 +15,77 @@ from losses import get_loss
 
 
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
-
-    # 확률적으로 cutmix 적용
-    if np.random.rand() > apply_ratio:
-        return batch  # cutmix를 적용하지 않음
-
+    
     data, targets = batch
-    indices = torch.randperm(data.size(0))
-    shuffled_data = data[indices]
-    shuffled_targets = targets[indices]
-    lam = np.random.uniform(0.1, alpha)
+    batch_size = data.size(0)
+    num_apply = int(batch_size * apply_ratio)
+    apply_indices = torch.randperm(batch_size)[:num_apply]
+        
+    cutmix_data = data.clone()
+    cutmix_targets = []
+    
+    for i in apply_indices:
+        
+        # 현재 이미지와 다른 이미지를 선택
+        while True:
+            j = torch.randint(0, batch_size, (1,)).item()
+            if j != i:
+                break
+        
+        lam = np.random.uniform(0.1, alpha)
 
-    image_h, image_w = data.shape[2:]
-    cx = np.random.uniform(0, image_w)
-    cy = np.random.uniform(0, image_h)
-    w = image_w * np.sqrt(1 - lam)
-    h = image_h * np.sqrt(1 - lam)
-    x0 = int(np.round(max(cx - w / 2, 0)))
-    x1 = int(np.round(min(cx + w / 2, image_w)))
-    y0 = int(np.round(max(cy - h / 2, 0)))
-    y1 = int(np.round(min(cy + h / 2, image_h)))
+        image_h, image_w = data.shape[2:]
+        cx = np.random.uniform(0, image_w)
+        cy = np.random.uniform(0, image_h)
+        w = image_w * np.sqrt(1 - lam)
+        h = image_h * np.sqrt(1 - lam)
+        x0 = int(np.round(max(cx - w / 2, 0)))
+        x1 = int(np.round(min(cx + w / 2, image_w)))
+        y0 = int(np.round(max(cy - h / 2, 0)))
+        y1 = int(np.round(min(cy + h / 2, image_h)))
 
-    # inplace 연산 역전파 오류 방지
-    new_data = data.clone()  # 원본 데이터를 클론하여 새로운 텐서를 생성
-    new_data[:, :, y0:y1, x0:x1] = shuffled_data[
-        :, :, y0:y1, x0:x1
-    ]  # in-place 연산 방지
-    targets = (targets, shuffled_targets, lam)
+        cutmix_data[i, :, y0:y1, x0:x1] = data[j, :, y0:y1, x0:x1]
+        cutmix_targets.append((targets[i], targets[j], lam))
 
-    return new_data, targets
+    return cutmix_data[apply_indices], cutmix_targets
 
 
-def mixup(images, labels, alpha=1.0, apply_ratio=1.0):
-    # 확률적으로 mixup을 적용할지를 결정
-    if np.random.rand() > apply_ratio:
-        return images, labels, None  # mixup을 적용하지 않음
+def mixup(images, labels, alpha=1.0, apply_ratio = 1.0):
+    
+    batch_size = len(images)
+    num_apply = int(batch_size * apply_ratio)
 
-    # 배치 내 이미지와 레이블의 순서를 무작위로 섞음
-    indices = torch.randperm(len(images))
-    shuffled_images = images[indices]
-    shuffled_labels = labels[indices]
+    # 적용할 이미지 인덱스를 무작위로 선택
+    apply_indices = torch.randperm(batch_size)[:num_apply]
 
-    # 베타 분포에서 샘플링된 값으로 lambda를 구함
-    lam = np.clip(np.random.beta(alpha, alpha), 0.5, 0.6)
+    mixedup_images = []
+    mixedup_labels = []
+    lam_list = []
 
-    # 이미지와 레이블을 lam 비율에 따라 선형 결합
-    mixedup_images = lam * images + (1 - lam) * shuffled_images
-    mixedup_labels = lam * labels + (1 - lam) * shuffled_labels
 
-    return mixedup_images, mixedup_labels, lam
+    for i in apply_indices:
+        # 현재 이미지와 다른 이미지를 선택
+        while True:
+            j = torch.randint(0, batch_size, (1,)).item()
+            if j != i:
+                break
+        
+        # 베타 분포에서 샘플링된 값으로 lambda를 구함
+        lam = np.clip(np.random.beta(alpha, alpha), 0.5, 0.6)
+        
+        # 이미지와 레이블을 lam 비율에 따라 선형 결합
+        mixed_image = lam * images[i] + (1 - lam) * images[j]
+        mixed_label = lam * labels[i] + (1 - lam) * labels[j]
+        
+        mixedup_images.append(mixed_image)
+        mixedup_labels.append(mixed_label)
+        lam_list.append(lam)
+    
+    # 리스트를 텐서로 변환
+    mixedup_images = torch.stack(mixedup_images)
+    mixedup_labels = torch.stack(mixedup_labels)    
+    
+    return mixedup_images, mixedup_labels, lam_list
 
 
 class Sketch_Classifier(pl.LightningModule):
@@ -72,10 +94,16 @@ class Sketch_Classifier(pl.LightningModule):
         self.save_hyperparameters()
 
         self.model_select = net.ModelSelector(
+            
             kwargs["model_type"],
+            
             kwargs["model_name"],
+            
             kwargs["num_classes"],
+            
             kwargs["pretrained"],
+
+            kwargs["num_cnn_classes"],
         )
 
         # self.backbone = net.build_model(model_name = kwargs['arch'])
@@ -100,34 +128,47 @@ class Sketch_Classifier(pl.LightningModule):
         self.cutmix_mixup = kwargs["cutmix_mixup"]
         self.cutmix_ratio = kwargs["cutmix_ratio"]
         self.mixup_ratio = kwargs["mixup_ratio"]
+        self.model_type = kwargs["model_type"]
 
     def forward(self, x):
-        # use forward for inference/predictions
         embedding = self.backbone(x)
         return embedding
 
     def training_step(self, batch, batch_idx):
+        if self.model_type == 'swin':
+            x, y, large_label, small_label = batch
+            y_hat_original, large_output, small_output = self(x)
+            loss_original = self.criterion(y_hat_original, y, large_output, large_label, small_output, small_label)
 
-        x, y = batch
-        y_hat_original = self(x)
-        loss_original = self.criterion(y_hat_original, y)
+        else:
+            x, y = batch
+            y_hat_original = self(x)
+            loss_original = self.criterion(y_hat_original, y)
+        
         total_acc = self.accuracy(y_hat_original, y)
 
         if self.cutmix_mixup == "cutmix":
-
+            
             # CutMix를 적용한 새로운 데이터 생성
-            x_cutmix, (y1, y2, lam) = cutmix(
-                batch, alpha=0.9, apply_ratio=self.cutmix_ratio
-            )
-
+            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_ratio=self.cutmix_ratio)
+            
             # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
-
+            
             # Loss 계산 (CutMix 데이터에 대한 손실)
-            loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (
+            if self.model_type == 'swin':
+                loss_cutmix = lam * self.criterion(y_hat_cutmix, y1, large_output, large_label, small_output, small_label) + (
                 1 - lam
-            ) * self.criterion(y_hat_cutmix, y2)
-
+                ) * self.criterion(y_hat_cutmix, y2, large_output, large_label, small_output, small_label)
+            else:
+                loss_cutmix = 0
+                for i, target in enumerate(new_targets):
+                    if isinstance(target, tuple):  # CutMix가 적용된 이미지
+                        y1, y2, lam = target
+                        loss_cutmix += lam * self.criterion(y_hat_cutmix[i].unsqueeze(0), y1.unsqueeze(0)) + \
+                                    (1 - lam) * self.criterion(y_hat_cutmix[i].unsqueeze(0), y2.unsqueeze(0))
+                
+                loss_cutmix = loss_cutmix / len(new_targets)           
             # 두 손실을 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_cutmix
 
@@ -135,19 +176,22 @@ class Sketch_Classifier(pl.LightningModule):
 
             # 라벨을 원-핫 인코딩으로 변환 (Mixup에만 사용)
             y_onehot = F.one_hot(y, self.num_classes).float()
-
+            
             # Mixup 적용
-            x_mixup, y_mixup, lam_mixup = mixup(
-                x, y_onehot, alpha=0.8, apply_ratio=self.mixup_ratio
-            )
+            x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8, apply_ratio=self.mixup_ratio)
 
             # Mixup 데이터에 대한 예측
             y_hat_mixup = self(x_mixup)
 
-            # Mixup 데이터에 대한 손실
-            loss_mixup = lam_mixup * self.criterion_bce(y_hat_mixup, y_onehot) + (
-                1 - lam_mixup
-            ) * self.criterion_bce(y_hat_mixup, y_mixup)
+
+            # Mixup 데이터에 대한 손실 계산
+            loss_mixup = 0
+            for i, (y_mix, lam) in enumerate(zip(y_mixup, lam_mixup)):
+                loss_mixup += lam * self.criterion_bce(y_hat_mixup[i].unsqueeze(0), y_onehot[i].unsqueeze(0)) + \
+                            (1 - lam) * self.criterion_bce(y_hat_mixup[i].unsqueeze(0), y_mix.unsqueeze(0))
+            
+            # 평균 손실 계산
+            loss_mixup /= len(y_mixup)
 
             # 총 손실 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_mixup
@@ -155,19 +199,42 @@ class Sketch_Classifier(pl.LightningModule):
         elif self.cutmix_mixup == "cutmix_mixup" or self.cutmix_mixup == "mixup_cutmix":
 
             # CutMix
-            x_cutmix, (y1, y2, lam) = cutmix(batch, alpha=0.9)
+            # CutMix를 적용한 새로운 데이터 생성
+            x_cutmix, new_targets = cutmix(batch, alpha=0.9, apply_ratio=self.cutmix_ratio)
+            
+            # 모델 예측 (CutMix된 데이터)
             y_hat_cutmix = self(x_cutmix)
-            loss_cutmix = lam * self.criterion(y_hat_cutmix, y1) + (
-                1 - lam
-            ) * self.criterion(y_hat_cutmix, y2)
-
+            
+            # Loss 계산 (CutMix 데이터에 대한 손실)
+            loss_cutmix = 0
+            for i, target in enumerate(new_targets):
+                if isinstance(target, tuple):  # CutMix가 적용된 이미지
+                    y1, y2, lam = target
+                    loss_cutmix += lam * self.criterion(y_hat_cutmix[i].unsqueeze(0), y1.unsqueeze(0)) + \
+                                (1 - lam) * self.criterion(y_hat_cutmix[i].unsqueeze(0), y2.unsqueeze(0))
+            
+ 
+            loss_cutmix = loss_cutmix / len(new_targets)       
+                       
             # Mixup
+            # 라벨을 원-핫 인코딩으로 변환 (Mixup에만 사용)
             y_onehot = F.one_hot(y, self.num_classes).float()
-            x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8)
+            
+            # Mixup 적용
+            x_mixup, y_mixup, lam_mixup = mixup(x, y_onehot, alpha=0.8, apply_ratio=self.mixup_ratio)
+
+            # Mixup 데이터에 대한 예측
             y_hat_mixup = self(x_mixup)
-            loss_mixup = lam_mixup * self.criterion_bce(y_hat_mixup, y_onehot) + (
-                1 - lam_mixup
-            ) * self.criterion_bce(y_hat_mixup, y_mixup)
+
+
+            # Mixup 데이터에 대한 손실 계산
+            loss_mixup = 0
+            for i, (y_mix, lam) in enumerate(zip(y_mixup, lam_mixup)):
+                loss_mixup += lam * self.criterion_bce(y_hat_mixup[i].unsqueeze(0), y_onehot[i].unsqueeze(0)) + \
+                            (1 - lam) * self.criterion_bce(y_hat_mixup[i].unsqueeze(0), y_mix.unsqueeze(0))
+            
+            # 평균 손실 계산
+            loss_mixup /= len(y_mixup)
 
             total_loss = 0.4 * loss_original + 0.3 * loss_cutmix + 0.3 * loss_mixup
 
@@ -193,9 +260,15 @@ class Sketch_Classifier(pl.LightningModule):
     #     return None
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
+        if self.model_type == 'swin':
+            x, y, large_label, small_label = batch
+            y_hat, large_output, small_output = self(x)
+            loss = self.criterion(y_hat, y, large_output, large_label, small_output, small_label)
+
+        else:
+            x, y = batch
+            y_hat = self(x)
+            loss = self.criterion(y_hat, y)
 
         preds = torch.argmax(y_hat, dim=1)
         acc = self.accuracy(y_hat, y)
@@ -219,7 +292,10 @@ class Sketch_Classifier(pl.LightningModule):
     #     self.log('test_acc', acc, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
     def predict_step(self, batch, batch_idx):
-        x = self(batch)
+        if self.model_type == 'swin':
+            x, _, _ = self(batch)
+        else:
+            x = self(batch)
         logits = F.softmax(x, dim=1)
         preds = logits.argmax(dim=1)
 
