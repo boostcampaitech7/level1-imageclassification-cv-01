@@ -45,7 +45,7 @@ def cutmix(batch, alpha=0.9, apply_ratio=1.0):
         y1 = int(np.round(min(cy + h / 2, image_h)))
 
         cutmix_data[i, :, y0:y1, x0:x1] = data[j, :, y0:y1, x0:x1]
-        cutmix_targets.append((targets[i], targets[i], lam))
+        cutmix_targets.append((targets[i], targets[j], lam))
 
     return cutmix_data[apply_indices], cutmix_targets
 
