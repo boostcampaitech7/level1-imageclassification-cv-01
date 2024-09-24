@@ -15,7 +15,7 @@ class Coca_backbone(nn.Module):
         #     model_name, pretrained=True, num_classes=num_classes
         # )
         
-        self.model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained=model_name)
+        self.model, _, _ = open_clip.create_model_and_transforms('coca_ViT-L-14', pretrained=model_name)
 
 
 
@@ -25,8 +25,9 @@ class Coca_backbone(nn.Module):
         # for param in self.model.head.parameters():
         #     param.requires_grad = True
         
-        self.fc = nn.Linear(self.model.ln_final.normalized_shape[0],num_classes)
+        self.fc = nn.Linear(self.model.visual.ln_post.normalized_shape[0],num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
-        return self.fc(self.model.encode_image(x))
+        print(x.shape)
+        out = self.model.visual(x)[0]
+        return self.fc(out)

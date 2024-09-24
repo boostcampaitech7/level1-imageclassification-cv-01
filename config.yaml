@@ -8,8 +8,8 @@ gpus: 0
 ######################
 # 모델 설정
 ######################
-model_type: clip
-model_name: vit_giant_patch14_clip_224
+model_type: openclip
+model_name: laion2B-s13B-b90k
 pretrained: True
 
 ######################
@@ -43,7 +43,7 @@ num_cnn_classes: 20
 ######################
 # 데이터 증강 설정
 ######################
-cutmix_mixup: mixup_cutmix
+cutmix_mixup: origin
 cutmix_ratio: 0.2
 mixup_ratio: 0.2
 
