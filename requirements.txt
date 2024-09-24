@@ -18,3 +18,4 @@ opencv-python
 torchmetrics==1.4.0
 pytorch-lightning==2.4.0
 wandb
+open_clip_torch==2.26.1
