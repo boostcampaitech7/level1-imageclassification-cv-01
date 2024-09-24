@@ -5,7 +5,7 @@ import timm
 
 from backbone.base_backbone import SimpleCNN
 from backbone.clip_backbone import CLIP_backbone
-
+from backbone.openclip_backbone import Coca_backbone
 
 # def build_model(model_name='base',**kwargs):
 #     if model_name == 'mnist_linear':
@@ -37,6 +37,9 @@ class ModelSelector:
         
         elif model_type == "clip":
             self.model = CLIP_backbone(model_name,num_classes)
+
+        elif model_type == 'openclip':
+            self.model = Coca_backbone(model_name,num_classes)
 
         else:
             raise ValueError("Unknown model type specified.")
