@@ -10,8 +10,8 @@ import pytorch_lightning as pl
 import torchmetrics
 from sklearn.metrics import f1_score
 
-import net
-from losses import get_loss
+import src.models.model_selector as model_selector
+from src.training.losses.losses import get_loss
 
 
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
@@ -93,7 +93,7 @@ class Sketch_Classifier(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.model_select = net.ModelSelector(
+        self.model_select = model_selector.ModelSelector(
             
             kwargs["model_type"],
             
