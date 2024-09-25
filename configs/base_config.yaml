@@ -2,14 +2,14 @@
 # 실험 설정
 ######################
 use_wandb: True
-exp_name: clip
+exp_name: resnext50_32x4d
 gpus: 0
 
 ######################
 # 모델 설정
 ######################
-model_type: clip
-model_name: vit_giant_patch14_clip_224
+model_type: timm
+model_name: resnext50_32x4d
 pretrained: True
 
 ######################
@@ -32,7 +32,7 @@ num_workers: 8
 cos_sch: 50
 early_stopping: 10
 warm_up: 10
-batch_size: 4
+batch_size: 64
 weight_decay: 0.0
 loss: CE
 transform_name: albumentations
@@ -53,4 +53,4 @@ mixup_ratio: 0.2
 n_splits: 5
 accumulate_grad_batches: 8
 sweep_mode: False
-use_kfold: False
+use_kfold: True
