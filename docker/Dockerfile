@@ -13,8 +13,6 @@ RUN DEBIAN_FRONTEND=noninteractive ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/lo
 # Clone repository and download data
 # RUN git clone https://github.com/boostcampaitech7/level1-imageclassification-cv-01.git && \
 #     cd level1-imageclassification-cv-01 && \
-#     wget https://aistages-api-public-prod.s3.amazonaws.com/app/Competitions/000307/data/data.tar.gz && \
-#     tar -zxvf data.tar.gz && rm data.tar.gz
 
 # Install Python requirements
 # WORKDIR /level1-imageclassification-cv-01
