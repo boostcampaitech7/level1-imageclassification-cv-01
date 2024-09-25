@@ -116,7 +116,7 @@ class Sketch_Classifier(pl.LightningModule):
         self.warm_up = kwargs["warm_up"]
         self.output_dir = kwargs["output_dir"]
 
-        # self.k_fold_option = kwargs["kfold_pl_train_return"]
+        self.k_fold_option = kwargs["kfold_pl_train_return"]
 
         self.num_classes = kwargs["num_classes"]
         self.criterion_bce = torch.nn.BCEWithLogitsLoss()
@@ -294,10 +294,10 @@ class Sketch_Classifier(pl.LightningModule):
         logits = F.softmax(x, dim=1)
         preds = logits.argmax(dim=1)
 
-        # if self.k_fold_option:
-        #     return preds, logits
-        # else:
-        #     return preds
+        if self.k_fold_option:
+            return preds, logits
+        else:
+            return preds
 
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()

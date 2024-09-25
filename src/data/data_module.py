@@ -16,7 +16,7 @@ from src.data.swin_custom_dataset import SwinCustomDataset
 
 class SketchDataModule(pl.LightningDataModule):
 
-    def __init__(self, **kwargs):
+    def __init__(self, train_idx = None, val_idx= None, **kwargs):
         super().__init__()
 
         self.train_data_dir = kwargs["train_data_dir"]
@@ -33,20 +33,25 @@ class SketchDataModule(pl.LightningDataModule):
         self.train_info_df = pd.read_csv(kwargs["traindata_info_file"])
         self.test_info_df = pd.read_csv(kwargs["testdata_info_file"])
         
-        ## 특정 class sample이 1일 때 해결 
-        class_counts = self.train_info_df["target"].value_counts()
-        low_sample_classes = class_counts[class_counts < 2].index
-        low_sample_df = self.train_info_df[self.train_info_df["target"].isin(low_sample_classes)]
-        remaining_df = self.train_info_df[~self.train_info_df["target"].isin(low_sample_classes)]
 
+        if kwargs['use_kfold']:
+            self.train_info_df = self.train_info_df.iloc[train_idx]
+            self.val_info_df = self.train_info_df.iloc[val_idx]
 
-        self.train_info_df, self.val_info_df = train_test_split(
-            remaining_df,
-            test_size=0.2,  # validation 비율 (20%)
-            random_state=42,  # 랜덤 시드 고정
-            stratify=remaining_df["target"],  # 라벨을 기준으로 비율 유지
-        )
-        self.train_info_df = pd.concat([self.train_info_df, low_sample_df])
+        else: 
+            ## 특정 class sample이 1일 때 해결 
+            class_counts = self.train_info_df["target"].value_counts()
+            low_sample_classes = class_counts[class_counts < 2].index
+            low_sample_df = self.train_info_df[self.train_info_df["target"].isin(low_sample_classes)]
+            remaining_df = self.train_info_df[~self.train_info_df["target"].isin(low_sample_classes)]
+
+            self.train_info_df, self.val_info_df = train_test_split(
+                remaining_df,
+                test_size=0.2,  # validation 비율 (20%)
+                random_state=42,  # 랜덤 시드 고정
+                stratify=remaining_df["target"],  # 라벨을 기준으로 비율 유지
+            )
+            self.train_info_df = pd.concat([self.train_info_df, low_sample_df])
 
 
 

@@ -14,6 +14,7 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
+import torch.nn.functional as F
 
 from src.data import data_module, base_dataset
 from src.data import TransformSelector
@@ -61,7 +62,7 @@ def parse_args(config):
     parser.add_argument("--cutmix_mixup", type=str, default=config.get("cutmix_mixup"))
     parser.add_argument("--cutmix_ratio", type=int, default=config.get("cutmix_ratio"))
     parser.add_argument("--mixup_ratio", type=int, default=config.get("mixup_ratio"))
-    # parser.add_argument("--kfold_pl_train_return", type=str, default=False)
+    parser.add_argument("--kfold_pl_train_return", type=str, default=False)
     parser.add_argument("--n_splits", type=int, default=config.get("n_splits"))
     parser.add_argument("--sweep_mode", type=bool, default=config.get("sweep_mode"))
 
@@ -115,57 +116,81 @@ def run_sweep():
     wandb.agent(sweep_id, function=lambda: main(args), count=30) # 각 모델에 대해 한 번씩 실행
 
 
+
+def train(trainer_mod, data_mod,my_loggers,checkpoint_callback,**hparams):
+    trainer = pl.Trainer(
+        logger=my_loggers,
+        accelerator="cpu" if hparams['gpus'] == 0 else "gpu",
+        precision=16 if hparams['gpus'] != 0 else 32,  # CPU에서는 32-bit precision
+        devices=None if hparams['gpus'] == 0 else hparams['gpus'],
+        callbacks=checkpoint_callback,  # 콜백 리스트로 묶는 것이 좋음
+        max_epochs=hparams['epochs'],
+        accumulate_grad_batches=(1 if hparams['accumulate_grad_batches'] <= 0
+            else hparams['accumulate_grad_batches']),
+    )
+
+    
+    trainer.fit(trainer_mod, data_mod)
+
+    return trainer,trainer_mod,data_mod
+
+
+def val_pred(trainer,trainer_mod,data_mod,**hparams):
+
+    data_mod.test_data_dir = data_mod.train_data_dir
+    data_mod.test_info_df = data_mod.val_info_df
+    data_mod.setup(stage="predict")
+
+    validations = trainer.predict(trainer_mod, dataloaders=data_mod.predict_dataloader())
+
+    # pred_list = [pred.cpu().numpy() for batch in validations for pred, logit in batch]
+    # logit_list = [logit.cpu().numpy() for batch in validations for pred, logit in batch]
+
+    pred_list = []
+    # if hparams['kfold_pl_train_return']:
+    #     logit_list = []
+
+    for batch in validations:
+        if hparams['kfold_pl_train_return']:
+            preds, logits = batch  # batch에서 preds와 logits를 가져옴
+        else:
+            preds = batch 
+        pred_list.extend(preds.cpu().numpy())  # 각 배치의 pred들을 리스트에 추가
+        # if hparams['kfold_pl_train_return']:
+        #     logit_list.extend(logits.cpu().numpy())  # 각 배치의 logit들을 리스트에 추가
+   
+    return pred_list#,logit_list
+
 def main(args):
 
     hparams = dotdict(vars(args))
     # ------------
     # data
     # ------------
+    
+    monitor = "val_acc"
+    mode = "max"
+    save_top_k = 1  # best 하나 저장 + Last 저장
+
 
     if hparams.use_kfold:
+
+        hparams.kfold_pl_train_return = True
+
         skf = StratifiedKFold(n_splits=hparams.n_splits, shuffle=True, random_state=42)
 
         train_info_df = pd.read_csv(hparams["traindata_info_file"])
 
-        transform_selector = TransformSelector(hparams.transform_name)
-        train_transform = transform_selector.get_transform(True)
-        test_transform = transform_selector.get_transform(False)
-
         models = []
-
+        
         for fold, (train_idx, val_idx) in enumerate(
             skf.split(train_info_df, train_info_df["target"])
         ):
-            print("fold:", fold)
-            train_df = train_info_df.iloc[train_idx]
-            val_df = train_info_df.iloc[val_idx]
-
-            train_dataset = base_dataset.CustomDataset(
-                hparams.train_data_dir, train_df, train_transform, False
-            )
-            val_dataset = base_dataset.CustomDataset(
-                hparams.train_data_dir, val_df, test_transform, False
-            )
-            train_loader = DataLoader(
-                train_dataset,
-                batch_size=hparams.batch_size,
-                num_workers=hparams.num_workers,
-                shuffle=True,
-            )
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=hparams.batch_size,
-                num_workers=hparams.num_workers,
-                shuffle=False,
-            )
-
+            
             # logger
             my_loggers = setup_logger(args.use_wandb, args.sweep_mode, args.output_dir)
 
             # create model checkpoint callback
-            monitor = "val_acc"
-            mode = "max"
-            save_top_k = 1  # best 하나 저장 + Last 저장
             checkpoint_callback = []
             checkpoint_callback.append(
                 ModelCheckpoint(
@@ -176,7 +201,6 @@ def main(args):
                     mode=mode,
                 )
             )
-
             if hparams.early_stopping > 0:
                 early_stop = EarlyStopping(
                     monitor="valid_loss",
@@ -186,26 +210,14 @@ def main(args):
                 )
                 checkpoint_callback.append(early_stop)
 
+
             # ------------
             # training
             # ------------
-
-            trainer = pl.Trainer(
-                logger=my_loggers,
-                accelerator="cpu" if hparams.gpus == 0 else "gpu",
-                precision=16 if hparams.gpus != 0 else 32,  # CPU에서는 32-bit precision
-                devices=None if hparams.gpus == 0 else hparams.gpus,
-                callbacks=checkpoint_callback,  # 콜백 리스트로 묶는 것이 좋음
-                max_epochs=hparams.epochs,
-                accumulate_grad_batches=(
-                    1
-                    if hparams.accumulate_grad_batches <= 0
-                    else hparams.accumulate_grad_batches
-                ),
-            )
-
+            data_mod = data_module.SketchDataModule(train_idx=train_idx,val_idx=val_idx,**hparams)
             trainer_mod = Sketch_Classifier(**hparams)
-            trainer.fit(trainer_mod, train_loader, val_loader)
+
+            trainer, trainer_mod, data_mod = train(trainer_mod, data_mod,my_loggers,checkpoint_callback,**hparams)
 
             models.append(trainer_mod)
 
@@ -215,30 +227,10 @@ def main(args):
 
             print("start predict validation dataset")
 
-            val_dataset = base_dataset.CustomDataset(
-                hparams.train_data_dir, val_df, test_transform, True
-            )
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=hparams.batch_size,
-                num_workers=hparams.num_workers,
-                shuffle=False,
-            )
-
-            validations = trainer.predict(trainer_mod, val_loader)
-
-            # pred_list = [pred.cpu().numpy() for batch in validations for pred, logit in batch]
-            # logit_list = [logit.cpu().numpy() for batch in validations for pred, logit in batch]
-
-            pred_list, logit_list = [], []
-
-            for batch in validations:
-                preds, logits = batch  # batch에서 preds와 logits를 가져옴
-                pred_list.extend(preds.cpu().numpy())  # 각 배치의 pred들을 리스트에 추가
-                logit_list.extend(logits.cpu().numpy())  # 각 배치의 logit들을 리스트에 추가
-
-            # val_info = val_df.iloc[:100]
-            val_info = val_df
+            pred_list = val_pred(trainer,trainer_mod,data_mod,**hparams)
+            
+            val_info = data_mod.test_dataset.info_df
+            # val_info = val_info.iloc[:100]
             val_info["pred"] = pred_list
             val_info.to_csv(
                 os.path.join(args.output_dir + f"/fold{fold}", f"{fold}_validation.csv"),
@@ -247,25 +239,13 @@ def main(args):
 
         print("start predict test dataset")
 
-        test_info_df = pd.read_csv(hparams["testdata_info_file"])
-        # test_info_df = test_info_df.iloc[:100]
-        test_dataset = base_dataset.CustomDataset(
-            hparams.test_data_dir, test_info_df, test_transform, True
-        )
-
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=hparams.batch_size,
-            num_workers=hparams.num_workers,
-            shuffle=False,
-        )
-
-        test_predictions = np.zeros((len(test_dataset), hparams.num_classes))
+        data_mod = data_module.SketchDataModule(**hparams)
+        test_predictions = np.zeros((len(data_mod.test_info_df), hparams.num_classes))
         test_logits = []
 
         for model in models:
             model.setup("predict")
-            predictions = trainer.predict(model, test_loader)
+            predictions = trainer.predict(model, data_mod)
 
             pred_list = []
             logit_list = []
@@ -281,8 +261,8 @@ def main(args):
         test_predictions /= len(models)
 
         output_df = pd.DataFrame()
-        output_df["ID"] = range(len(test_info_df))
-        output_df["image_path"] = test_info_df["image_path"]
+        output_df["ID"] = range(len(data_mod.test_info_df))
+        output_df["image_path"] = data_mod.test_info_df["image_path"]
         output_df["target"] = test_predictions.argmax(axis=1)
 
         if not os.path.isdir(args.output_dir):
@@ -292,15 +272,8 @@ def main(args):
     
     else:
 
-        data_mod = data_module.SketchDataModule(**hparams)
-
         # logger
         my_loggers = setup_logger(args.use_wandb, args.sweep_mode, args.output_dir)
-
-        # create model checkpoint callback
-        monitor = "val_acc"
-        mode = "max"
-        save_top_k = 1  # best 하나 저장 + Last 저장
 
         checkpoint_callback = []
         checkpoint_callback.append(
@@ -313,36 +286,14 @@ def main(args):
             )
         )
 
-        if hparams.early_stopping > 0:
-            early_stop = EarlyStopping(
-                monitor="valid_loss",
-                patience=hparams.early_stopping,
-                verbose=False,
-                mode="min",
-            )
-            checkpoint_callback.append(early_stop)
-
         # ------------
         # training
         # ------------
-        trainer = pl.Trainer(
-            logger=my_loggers,
-            accelerator="cpu" if hparams.gpus == 0 else "gpu",
-            precision='16-mixed' if hparams.gpus != 0 else 32,  # CPU에서는 32-bit precision
-            devices=None if hparams.gpus == 0 else hparams.gpus,
-            callbacks=checkpoint_callback,  # 콜백 리스트로 묶는 것이 좋음
-            max_epochs=hparams.epochs,
-            accumulate_grad_batches=(
-                1
-                if hparams.accumulate_grad_batches <= 0
-                else hparams.accumulate_grad_batches
-            ),
-        )
-
-        # Train the model
+        data_mod = data_module.SketchDataModule(**hparams)
         trainer_mod = Sketch_Classifier(**hparams)
-        trainer.fit(trainer_mod, data_mod)
+        trainer,trainer_mod, data_mod = train(trainer_mod, data_mod,my_loggers,checkpoint_callback,**hparams)
 
+        #
         # ------------
         # testing
         # ------------
@@ -368,17 +319,10 @@ def main(args):
 
         print("start predict validation dataset")
 
-        # Set up validation data
-        data_mod.test_data_dir = data_mod.train_data_dir
-        data_mod.test_info_df = data_mod.val_info_df
-        data_mod.setup(stage="predict")
-
-        # Make validation predictions
-        validations = trainer.predict(best_model, dataloaders=data_mod.predict_dataloader())
-        val_list = [val.cpu().numpy() for batch in validations for val in batch]
-        
-        # Prepare Validation information DataFrame
+        # # Prepare Validation information DataFrame
+        val_list = val_pred(trainer,trainer_mod,data_mod,**hparams)
         val_info = data_mod.test_dataset.info_df
+        # val_info = val_info.iloc[:100]
         val_info["pred"] = val_list
 
         # Save Validation predictions to CSV
