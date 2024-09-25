@@ -194,9 +194,10 @@ level1-imageclassification-cv-01/
 <details> 
   <summary id="additional-setting">Additional Setting</summary> 
 
-  - Modify `config.yaml` to adjust various training and model parameters: 
-
-        ```yaml
+  - Modify `configs/base_config.yaml` to adjust various training and model parameters:
+  
+  
+	```yaml
         ######################
         # experiment setting 
         ######################
