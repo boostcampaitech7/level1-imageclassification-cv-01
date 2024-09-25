@@ -75,6 +75,7 @@ This project is part of BoostCamp AI Tech and focuses on developing a classficat
 ## Run
 
 ```
+export PATHONPATH = /data/ephemeral/level1-imageclassification-cv-01/
 python tools/train_and_predict.py
 ```
 
