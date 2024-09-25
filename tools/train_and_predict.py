@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
-from src.data import data_module, TransformSelector, base_dataset
+from src.data import data_module, base_dataset
+from src.data import TransformSelector
 from src.training import Sketch_Classifier
 from src.utils import dotdict, load_config, setup_logger
 
@@ -62,6 +63,7 @@ def parse_args(config):
     parser.add_argument("--mixup_ratio", type=int, default=config.get("mixup_ratio"))
     # parser.add_argument("--kfold_pl_train_return", type=str, default=False)
     parser.add_argument("--n_splits", type=int, default=config.get("n_splits"))
+    parser.add_argument("--sweep_mode", type=bool, default=config.get("sweep_mode"))
 
     parser.add_argument(
         "--mixed_precision", type=bool, default=config.get("mixed_precision"),
@@ -390,7 +392,7 @@ if __name__ == "__main__":
     # ------------
     # Load arguments and configuration
     # ------------
-    config = load_config("../configs/base_config.yaml")
+    config = load_config("configs/base_config.yaml")
     args = parse_args(config)
 
     # ------------

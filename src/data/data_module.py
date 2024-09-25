@@ -8,8 +8,10 @@ import pytorch_lightning as pl
 from torchvision.datasets.mnist import MNIST
 from sklearn.model_selection import train_test_split
 
-from src.data.folder_dataset import CustomImageFolderDataset, CustomDataset
-from . import TransformSelector, SwinCustomDataset
+from src.data.folder_dataset import CustomImageFolderDataset
+from src.data.base_dataset import CustomDataset
+from src.data.transforms import TransformSelector
+from src.data.swin_custom_dataset import SwinCustomDataset
 
 
 class SketchDataModule(pl.LightningDataModule):

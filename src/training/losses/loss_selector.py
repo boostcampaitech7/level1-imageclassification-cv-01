@@ -2,17 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import CELoss
-from . import FocalLoss
-from . import SwinCombinedLoss
+from . import CELoss, FocalLoss, SwinCombinedLoss
 
-class LossFactory:
-    def __init__(self):
-        # 초기화 단계에서는 특별한 동작 없음
-        pass
+class LossSelector:
+    def __init__(self, loss_name='CE', **kwargs):
+        self.loss_name = loss_name
+        self.kwargs = kwargs
+        self.loss_fn = self.get_loss(self.loss_name, **self.kwargs)
 
-    def __call__(self, loss_name='CE', **kwargs):
-        return self.get_loss(loss_name, **kwargs)
+    def __call__(self, y_hat, y):
+        return self.loss_fn(y_hat, y)
 
     def get_loss(self, loss_name, **kwargs):
         if loss_name == 'CE':

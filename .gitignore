@@ -127,4 +127,5 @@ test.ipynb
 *.csv
 
 # Exclude the src/data directory from being ignored
+/data/
 !src/data/

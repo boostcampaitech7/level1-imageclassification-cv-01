@@ -11,14 +11,14 @@ import torchmetrics
 from sklearn.metrics import f1_score
 
 from ..models import model_selector
-from losses import LossFactory
+from .losses import LossSelector
 
 
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
     
     data, targets = batch
     batch_size = data.size(0)
-    num_apply = int(batch_size * apply_ratio)
+    num_apply = max(1, int(batch_size * apply_ratio))
     apply_indices = torch.randperm(batch_size)[:num_apply]
         
     cutmix_data = data.clone()
@@ -53,7 +53,7 @@ def cutmix(batch, alpha=0.9, apply_ratio=1.0):
 def mixup(images, labels, alpha=1.0, apply_ratio = 1.0):
     
     batch_size = len(images)
-    num_apply = int(batch_size * apply_ratio)
+    num_apply = max(1,int(batch_size * apply_ratio))
 
     # 적용할 이미지 인덱스를 무작위로 선택
     apply_indices = torch.randperm(batch_size)[:num_apply]
@@ -109,7 +109,7 @@ class Sketch_Classifier(pl.LightningModule):
             task="multiclass", num_classes=kwargs["num_classes"]
         )
         # self.criterion = nn.CrossEntropyLoss()
-        self.criterion = LossFactory(loss_name=kwargs["loss"], **kwargs)
+        self.criterion = LossSelector(loss_name=kwargs["loss"], **kwargs)
         self.optim = kwargs["optim"]
         self.weight_decay = kwargs["weight_decay"]
         self.cos_sch = kwargs["cos_sch"]
