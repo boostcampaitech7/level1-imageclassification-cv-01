@@ -15,9 +15,9 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
-from ..src.data import data_module, TransformSelector, base_dataset
-from ..src.training import Sketch_Classifier
-from ..src.utils import dotdict, load_config, setup_logger
+from src.data import data_module, TransformSelector, base_dataset
+from src.training import Sketch_Classifier
+from src.utils import dotdict, load_config, setup_logger
 
 # TODO
 # test option 따로 만들기
