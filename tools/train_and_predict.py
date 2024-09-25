@@ -2,26 +2,23 @@ import os
 from argparse import ArgumentParser
 from time import gmtime, strftime
 
-import pytorch_lightning as pl
+import numpy as np
+import pandas as pd
 import torch
+import pytorch_lightning as pl
 import yaml
+import wandb
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, WandbLogger
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
+from sklearn.model_selection import StratifiedKFold
+from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
-from src.data import data_module
-from pl_trainer import Sketch_Classifier
-from utils import dotdict, load_config, setup_logger
-from src.data import TransformSelector
-from src.data import base_dataset
-from sklearn.model_selection import StratifiedKFold
-import pandas as pd
+from ..src.data import data_module, TransformSelector, base_dataset
+from ..src.training import Sketch_Classifier
+from ..src.utils import dotdict, load_config, setup_logger
 
-
-import wandb
 # TODO
 # test option 따로 만들기
 # model ckpt 파일 불러오기
@@ -35,66 +32,31 @@ def parse_args(config):
     parser = ArgumentParser()
 
     # Set defaults from config file, but allow override via command line
-    parser.add_argument(
-        "--exp_name", type=str, default=config.get("exp_name")
-    )  # 현재 실험 이름
-    parser.add_argument(
-        "--base_output_dir", type=str, default=config.get("base_output_dir")
-    )  # 실험 결과 저장 폴더
+    parser.add_argument("--exp_name", type=str, default=config.get("exp_name"))
+    parser.add_argument("--base_output_dir", type=str, default=config.get("base_output_dir"))
     parser.add_argument("--gpus", type=str, default=config.get("gpus"))
-
     parser.add_argument("--batch_size", type=int, default=config.get("batch_size"))
     parser.add_argument("--epochs", type=int, default=config.get("epochs"))
-    parser.add_argument(
-        "--learning_rate", type=float, default=config.get("learning_rate")
-    )
-
-    parser.add_argument('--num_cnn_classes', type=int, default=config.get('num_cnn_classes'))  # CNN 분류 클래스 수
-
-    parser.add_argument(
-        "--model_type", type=str, default=config.get("model_type")
-    )  # backbone 타입
-    parser.add_argument(
-        "--model_name", type=str, default=config.get("model_name")
-    )  # torchvision, timm을 위한 model 이름
+    parser.add_argument("--learning_rate", type=float, default=config.get("learning_rate"))
+    parser.add_argument("--num_cnn_classes", type=int, default=config.get("num_cnn_classes"))
+    parser.add_argument("--model_type", type=str, default=config.get("model_type"))
+    parser.add_argument("--model_name", type=str, default=config.get("model_name"))
     parser.add_argument("--pretrained", type=bool, default=config.get("pretrained"))
-    parser.add_argument(
-        "--data_name", type=str, default=config.get("data_name")
-    )  # dataset 이름
-    parser.add_argument(
-        "--transform_name", type=str, default=config.get("transform_name")
-    )
+    parser.add_argument("--data_name", type=str, default=config.get("data_name"))
+    parser.add_argument("--transform_name", type=str, default=config.get("transform_name"))
     parser.add_argument("--num_classes", type=int, default=config.get("num_classes"))
     parser.add_argument("--optim", type=str, default=config.get("optim"))
     parser.add_argument("--weight_decay", type=str, default=config.get("weight_decay"))
     parser.add_argument("--loss", type=str, default=config.get("loss"))
-    parser.add_argument(
-        "--cos_sch", type=int, default=config.get("cos_sch")
-    )  # cos 주기
+    parser.add_argument("--cos_sch", type=int, default=config.get("cos_sch"))
     parser.add_argument("--warm_up", type=int, default=config.get("warm_up"))
-    parser.add_argument(
-        "--early_stopping", type=int, default=config.get("early_stopping")
-    )
-
-    parser.add_argument(
-        "--train_data_dir", type=str, default=config.get("train_data_dir")
-    )
-    parser.add_argument(
-        "--traindata_info_file", type=str, default=config.get("traindata_info_file")
-    )
-    parser.add_argument(
-        "--test_data_dir", type=str, default=config.get("test_data_dir")
-    )
-    parser.add_argument(
-        "--testdata_info_file", type=str, default=config.get("testdata_info_file")
-    )
-
-    parser.add_argument(
-        "--use_wandb", type=int, default=config.get("use_wandb")
-    )  # wandb 사용?
-    parser.add_argument(
-        "--num_workers", type=str, default=config.get("num_workers")
-    )  # dataloader 옵션 관련
+    parser.add_argument("--early_stopping", type=int, default=config.get("early_stopping"))
+    parser.add_argument("--train_data_dir", type=str, default=config.get("train_data_dir"))
+    parser.add_argument("--traindata_info_file", type=str, default=config.get("traindata_info_file"))
+    parser.add_argument("--test_data_dir", type=str, default=config.get("test_data_dir"))
+    parser.add_argument("--testdata_info_file", type=str, default=config.get("testdata_info_file"))
+    parser.add_argument("--use_wandb", type=int, default=config.get("use_wandb"))
+    parser.add_argument("--num_workers", type=str, default=config.get("num_workers"))
     parser.add_argument("--cutmix_mixup", type=str, default=config.get("cutmix_mixup"))
     parser.add_argument("--cutmix_ratio", type=int, default=config.get("cutmix_ratio"))
     parser.add_argument("--mixup_ratio", type=int, default=config.get("mixup_ratio"))
@@ -102,14 +64,17 @@ def parse_args(config):
     parser.add_argument("--n_splits", type=int, default=config.get("n_splits"))
 
     parser.add_argument(
-        "--mixed_precision", type=bool, default=config.get("mixed_precision")
+        "--mixed_precision", type=bool, default=config.get("mixed_precision"),
+        help="Use mixed precision training for better performance."
     )
     parser.add_argument(
-        "--accumulate_grad_batches",
-        type=int,
-        default=config.get("accumulate_grad_batches"),
+        "--accumulate_grad_batches", type=int, default=config.get("accumulate_grad_batches"),
+        help="Accumulate gradients over multiple batches to save memory."
     )
-    parser.add_argument("--use_kfold", type=bool, default=config.get("use_kfold"))
+    parser.add_argument(
+        "--use_kfold", type=bool, default=config.get("use_kfold"),
+        help="Whether to use K-Fold cross-validation during training."
+    )
 
     return parser.parse_args()
 
@@ -202,7 +167,7 @@ def main(args):
             checkpoint_callback = []
             checkpoint_callback.append(
                 ModelCheckpoint(
-                    dirpath=hparams.output_dir + f"/fold{fold}",
+                    dirpath=f"{hparams.output_dir}/fold{fold}",
                     save_last=True,
                     save_top_k=save_top_k,
                     monitor=monitor,
@@ -263,8 +228,7 @@ def main(args):
             # pred_list = [pred.cpu().numpy() for batch in validations for pred, logit in batch]
             # logit_list = [logit.cpu().numpy() for batch in validations for pred, logit in batch]
 
-            pred_list = []
-            logit_list = []
+            pred_list, logit_list = [], []
 
             for batch in validations:
                 preds, logits = batch  # batch에서 preds와 logits를 가져옴
@@ -426,7 +390,7 @@ if __name__ == "__main__":
     # ------------
     # Load arguments and configuration
     # ------------
-    config = load_config("config.yaml")
+    config = load_config("../configs/base_config.yaml")
     args = parse_args(config)
 
     # ------------

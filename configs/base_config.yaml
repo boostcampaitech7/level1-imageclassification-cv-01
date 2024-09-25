@@ -20,8 +20,8 @@ test_data_dir: ./data/test
 base_output_dir: ./result
 num_classes: 500
 data_name: base
-testdata_info_file: ./data/test.csv
 traindata_info_file: ./data/train_data2_augmentation_motionblur.csv
+testdata_info_file: ./data/test.csv
 
 ######################
 # 학습 설정
