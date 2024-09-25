@@ -5,6 +5,7 @@ import timm
 
 from backbone.base_backbone import SimpleCNN
 from backbone.clip_backbone import CLIP_backbone
+from backbone.openclip_backbone import Coca_backbone
 from backbone.swin_backbone import ModifiedSwinTransformer
 import math
 
@@ -49,6 +50,9 @@ class ModelSelector:
         
         elif model_type == "clip":
             self.model = CLIP_backbone(model_name,num_classes)
+
+        elif model_type == 'openclip':
+            self.model = Coca_backbone(model_name,num_classes)
 
         elif model_type == 'cnnvit':
             self.model = CNNViTModel(num_cnn_classes, num_classes, pretrained)

@@ -2,26 +2,26 @@
 # 실험 설정
 ######################
 use_wandb: True
-exp_name: swin_base_patch4_window12_384
+exp_name: test
 gpus: 0
 
 ######################
 # 모델 설정
 ######################
-model_type: timm
-model_name: swin_base_patch4_window12_384
+model_type: openclip
+model_name: laion2B-s13B-b90k
 pretrained: True
 
 ######################
 # 데이터 설정
 ######################
-train_data_dir: ./data/train_data2_augmentation_motionblur
+train_data_dir: ./data/train
 test_data_dir: ./data/test
 base_output_dir: ./result
 num_classes: 500
 data_name: base
 testdata_info_file: ./data/test.csv
-traindata_info_file: ./data/train_data2_augmentation_motionblur.csv
+traindata_info_file: ./data/train.csv
 
 ######################
 # 학습 설정
@@ -29,13 +29,13 @@ traindata_info_file: ./data/train_data2_augmentation_motionblur.csv
 epochs: 100
 learning_rate: 0.0001
 num_workers: 8
-cos_sch: 50
-early_stopping: 10
+cos_sch: 80
+early_stopping: 5
 warm_up: 10
 batch_size: 4
 weight_decay: 0.0
 loss: CE
-transform_name: albumentations
+transform_name: torchvision
 optim: AdamW
 mixed_precision: True
 num_cnn_classes: 20
@@ -43,7 +43,7 @@ num_cnn_classes: 20
 ######################
 # 데이터 증강 설정
 ######################
-cutmix_mixup: mixup_cutmix
+cutmix_mixup: origin
 cutmix_ratio: 0.2
 mixup_ratio: 0.2
 
