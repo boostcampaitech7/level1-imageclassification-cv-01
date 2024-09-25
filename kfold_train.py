@@ -110,6 +110,7 @@ def parse_args(config):
         type=int,
         default=config.get("accumulate_grad_batches"),
     )
+    parser.add_argument('--num_cnn_classes', type=int, default=config.get('num_cnn_classes'))
     return parser.parse_args()
 
 
@@ -137,10 +138,10 @@ def main(args):
         train_df = train_info_df.iloc[train_idx]
         val_df = train_info_df.iloc[val_idx]
 
-        train_dataset = base_dataset.CustomDataset(
+        train_dataset = base_dataset.SwinCustomDataset(
             hparams.train_data_dir, train_df, train_transform, False
         )
-        val_dataset = base_dataset.CustomDataset(
+        val_dataset = base_dataset.SwinCustomDataset(
             hparams.train_data_dir, val_df, test_transform, False
         )
         train_loader = DataLoader(
