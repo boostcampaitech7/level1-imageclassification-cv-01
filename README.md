@@ -253,6 +253,6 @@ level1-imageclassification-cv-01/
         n_splits: 5
         accumulate_grad_batches: 8
         sweep_mode: True
-        ```
+  	```
       
 </details>
