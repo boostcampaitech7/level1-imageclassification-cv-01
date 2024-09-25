@@ -17,6 +17,10 @@ from losses import get_loss
 def cutmix(batch, alpha=0.9, apply_ratio=1.0):
     
     data, targets = batch
+    # 디버깅: targets에 빈 값이 있는지 확인
+    if targets is None or len(targets) == 0:
+        raise ValueError("targets가 비어 있습니다.")
+    
     batch_size = data.size(0)
     num_apply = int(batch_size * apply_ratio)
     apply_indices = torch.randperm(batch_size)[:num_apply]
@@ -45,7 +49,7 @@ def cutmix(batch, alpha=0.9, apply_ratio=1.0):
         y1 = int(np.round(min(cy + h / 2, image_h)))
 
         cutmix_data[i, :, y0:y1, x0:x1] = data[j, :, y0:y1, x0:x1]
-        cutmix_targets.append((targets[i], targets[i], lam))
+        cutmix_targets.append((targets[i], targets[j], lam))
 
     return cutmix_data[apply_indices], cutmix_targets
 
@@ -139,7 +143,6 @@ class Sketch_Classifier(pl.LightningModule):
             x, y, large_label, small_label = batch
             y_hat_original, large_output, small_output = self(x)
             loss_original = self.criterion(y_hat_original, y, large_output, large_label, small_output, small_label)
-
         else:
             x, y = batch
             y_hat_original = self(x)
@@ -156,19 +159,14 @@ class Sketch_Classifier(pl.LightningModule):
             y_hat_cutmix = self(x_cutmix)
             
             # Loss 계산 (CutMix 데이터에 대한 손실)
-            if self.model_type == 'swin':
-                loss_cutmix = lam * self.criterion(y_hat_cutmix, y1, large_output, large_label, small_output, small_label) + (
-                1 - lam
-                ) * self.criterion(y_hat_cutmix, y2, large_output, large_label, small_output, small_label)
-            else:
-                loss_cutmix = 0
-                for i, target in enumerate(new_targets):
-                    if isinstance(target, tuple):  # CutMix가 적용된 이미지
-                        y1, y2, lam = target
-                        loss_cutmix += lam * self.criterion(y_hat_cutmix[i].unsqueeze(0), y1.unsqueeze(0)) + \
-                                    (1 - lam) * self.criterion(y_hat_cutmix[i].unsqueeze(0), y2.unsqueeze(0))
+            loss_cutmix = 0
+            for i, target in enumerate(new_targets):
+                if isinstance(target, tuple):  # CutMix가 적용된 이미지
+                    y1, y2, lam = target
+                    loss_cutmix += lam * self.criterion(y_hat_cutmix[i].unsqueeze(0), y1.unsqueeze(0)) + \
+                                (1 - lam) * self.criterion(y_hat_cutmix[i].unsqueeze(0), y2.unsqueeze(0))
                 
-                loss_cutmix = loss_cutmix / len(new_targets)           
+            loss_cutmix = loss_cutmix / len(new_targets)           
             # 두 손실을 합산
             total_loss = 0.6 * loss_original + 0.4 * loss_cutmix
 

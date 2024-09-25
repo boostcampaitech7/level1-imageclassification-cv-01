@@ -69,7 +69,7 @@ class SwinCustomDataset(Dataset):
         self.image_paths = self.info_df["image_path"].tolist()
         
         if not self.is_inference:
-            self.original_labels = self.info_df['target'].tolist()
+            self.target = self.info_df['target'].tolist()
             self.large_labels = self.info_df['large_label'].tolist()  # 대분류 라벨
             self.small_labels = self.info_df['small_label'].tolist()  # 중분류 라벨
 
@@ -88,16 +88,12 @@ class SwinCustomDataset(Dataset):
         )
 
         if self.transform:
-            
-            # augmented = self.transform(image=image)
-            # image = augmented['image']
-            # CHANGE 
             image = self.transform(image)
 
         if self.is_inference:
             return image
         else:
-            original_label = self.original_labels[index]
+            target = self.target[index]
             large_label = self.large_labels[index]
             small_label = self.small_labels[index]
-            return image, original_label, large_label, small_label
+            return image, target, large_label, small_label
