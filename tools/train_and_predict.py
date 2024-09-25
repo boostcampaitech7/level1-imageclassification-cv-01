@@ -1,3 +1,4 @@
+import sys
 import os
 from argparse import ArgumentParser
 from time import gmtime, strftime
@@ -15,6 +16,10 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 import torch.nn.functional as F
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
 from src.data import data_module, base_dataset
 from src.data import TransformSelector

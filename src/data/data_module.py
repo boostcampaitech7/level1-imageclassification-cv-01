@@ -35,9 +35,8 @@ class SketchDataModule(pl.LightningDataModule):
         
 
         if kwargs['use_kfold']:
-            self.train_info_df = self.train_info_df.iloc[train_idx]
-            self.val_info_df = self.train_info_df.iloc[val_idx]
-
+            self.train_info_df, self.val_info_df = self.train_info_df.iloc[train_idx], self.train_info_df.iloc[val_idx]
+            
         else: 
             ## 특정 class sample이 1일 때 해결 
             class_counts = self.train_info_df["target"].value_counts()

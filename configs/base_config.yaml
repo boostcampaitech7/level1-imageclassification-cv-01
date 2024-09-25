@@ -26,7 +26,7 @@ testdata_info_file: ./data/test.csv
 ######################
 # 학습 설정
 ######################
-epochs: 100
+epochs: 1
 learning_rate: 0.0001
 num_workers: 8
 cos_sch: 50
@@ -50,7 +50,7 @@ mixup_ratio: 0.2
 ######################
 # 교차 검증 및 기타 설정
 ######################
-n_splits: 5
+n_splits: 2
 accumulate_grad_batches: 8
 sweep_mode: False
 use_kfold: True
