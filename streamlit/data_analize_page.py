@@ -43,6 +43,9 @@ def show_dataframe(dataset,window,type):
         dataset = dataset.sort_values(
             by=sort_field, ascending=sort_direction == "⬆️", ignore_index=True
         )
+    total_data = dataset.shape
+    with top_menu[0]:
+        st.write("data_shape: "+str(total_data))
     con1,con2 = window.columns(2)
 
     bottom_menu = window.columns((4, 1, 1))
@@ -70,10 +73,8 @@ if option == "CSV파일":
         st.session_state.path = [0,0]
 
     targetdata = st.sidebar.checkbox("트레인 데이터 타겟 설정")
-    c1, c2 = st.columns(2)
     st.header("테스트 데이터")
     page = show_dataframe(testd,st,'test')
-    #show_images('test', page['image_path'], c2)
 
     if not targetdata:
         st.header("트레인 데이터")
