@@ -11,13 +11,6 @@ class SwinCombinedLoss(nn.Module):
         self.original_loss_weight = original_loss_weight
 
     def forward(self, original_output, original_label, large_output, large_label, small_output, small_label):
-        # 모델 출력이 튜플일 경우 첫 번째 요소만 사용
-        if isinstance(original_output, tuple):
-            original_output = original_output[0]
-        if isinstance(large_output, tuple):
-            large_output = large_output[0]
-        if isinstance(small_output, tuple):
-            small_output = small_output[0]
         original_loss = self.original_loss_fn(original_output, original_label)
         large_loss = self.large_loss_fn(large_output, large_label)
         small_loss = self.small_loss_fn(small_output, small_label)

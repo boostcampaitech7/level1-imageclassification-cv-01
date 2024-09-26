@@ -118,7 +118,7 @@ def run_sweep():
         },
     }
     sweep_id = wandb.sweep(sweep_config, project="sketch classification", entity="nav_sketch")
-    wandb.agent(sweep_id, function=lambda: main(args), count=30) # 각 모델에 대해 한 번씩 실행
+    wandb.agent(sweep_id, function=lambda: main(args), count=1) # 각 모델에 대해 한 번씩 실행
 
 
 

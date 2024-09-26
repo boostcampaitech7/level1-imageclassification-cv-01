@@ -8,6 +8,7 @@ from . import CLIP_backbone
 from . import CNNViTModel
 from . import EnsembleModel
 from . import ModifiedSwinTransformer
+from . import Coca_backbone
 import math
 
 import torch

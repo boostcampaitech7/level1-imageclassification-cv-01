@@ -34,7 +34,7 @@ class SketchDataModule(pl.LightningDataModule):
         self.test_info_df = pd.read_csv(kwargs["testdata_info_file"])
         
 
-        if kwargs['use_kfold']:
+        if kwargs['use_kfold'] and val_idx is not None:
             self.train_info_df, self.val_info_df = self.train_info_df.iloc[train_idx], self.train_info_df.iloc[val_idx]
             
         else: 
