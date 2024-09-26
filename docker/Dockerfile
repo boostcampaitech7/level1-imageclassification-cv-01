@@ -9,14 +9,12 @@ RUN apt-get update -y && apt-get upgrade -y && \
 RUN DEBIAN_FRONTEND=noninteractive ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
 
-# ssh 
-# Clone repository and download data
-# RUN git clone https://github.com/boostcampaitech7/level1-imageclassification-cv-01.git && \
-#     cd level1-imageclassification-cv-01 && \
+# Clone repository
+RUN git clone https://github.com/boostcampaitech7/level1-imageclassification-cv-01.git
 
 # Install Python requirements
-# WORKDIR /level1-imageclassification-cv-01
-# RUN pip install -r requirements.txt
+WORKDIR /level1-imageclassification-cv-01
+RUN pip install -r requirements.txt
 
 # Set the default command
 CMD ["/bin/bash"]
