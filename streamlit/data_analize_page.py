@@ -20,7 +20,9 @@ def load_output_data():
 
     output_data = {}
     for file in csv_files:
-        output_data[file] = pd.read_csv(file)
+        df = pd.read_csv(file)
+        if 'epoch' in df.columns: continue
+        output_data[file] = df
 
     return output_data
 
@@ -124,6 +126,9 @@ elif option == "결과 데이터":
 
     #사이드 바에서 결과 데이터 중 csv 파일 하나를 선택
     selected_file = st.sidebar.selectbox("CSV File", output_data.keys())
+    if 'class_name' in output_data[selected_file].columns:
+        folder = '../data/train/'
+    else: folder = '../data/test/'
     outdata = output_data[selected_file][['image_path', 'target']]
 
     # 데이터 출력
@@ -132,7 +137,7 @@ elif option == "결과 데이터":
     targetdata = st.sidebar.checkbox("아웃풋 데이터 타겟 설정")
     if not targetdata:
         # 아웃풋 데이터 기준으로 분포 확인
-        show_dataframe(outdata,st,'../data/test/')
+        show_dataframe(outdata,st,folder)
         outtargetcount = outdata["target"].value_counts().sort_index()
         st.header("아웃풋 데이터 타겟 값 분포")
         c1, c2 = st.columns([2,7])
@@ -146,4 +151,4 @@ elif option == "결과 데이터":
         # 아웃풋 데이터 기준으로 타겟 별로 출력
         target = st.sidebar.number_input("타겟",min_value=outdata['target'].min(),max_value=outdata['target'].max(), step=1)
         outdata = outdata.loc[outdata.target == target].reset_index(drop=True)
-        show_dataframe(outdata,st,'../data/test/')
+        show_dataframe(outdata,st,folder)
