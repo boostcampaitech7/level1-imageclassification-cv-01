@@ -50,6 +50,6 @@ mixup_ratio: 0.2
 ######################
 # 교차 검증 및 기타 설정
 ######################
-n_splits: 5
+n_splits: 10
 accumulate_grad_batches: 8
 sweep_mode: False
