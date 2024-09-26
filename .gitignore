@@ -102,7 +102,7 @@ ENV/
 
 
 # input data, saved log, checkpoints
-data/
+# data/
 input/
 saved/
 datasets/
@@ -125,3 +125,7 @@ data/
 test.ipynb
 *.JPEG
 *.csv
+
+# Exclude the src/data directory from being ignored
+/data/
+!src/data/

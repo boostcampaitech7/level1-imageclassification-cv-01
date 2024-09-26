@@ -72,45 +72,85 @@ This project is part of BoostCamp AI Tech and focuses on developing a classficat
 
 </details>
 
+## Run
+
+```
+export PATHONPATH = /data/ephemeral/level1-imageclassification-cv-01/
+python tools/train_and_predict.py
+```
+
 ## Tree Structure
 
 ```
-level1-imageclassification-cv-01/
-|   .flake8
-|   .gitignore
-|   baseline_code.ipynb
-|   config.yaml
-|   data_module.py
-|   eda.ipynb
-|   losses.py
-|   main.py
-|   net.py
-|   pl_trainer.py
-|   README.md
-|   requirements.txt
-|   select_transforms.py
-|   test.ipynb
+level1-imageclassification-cv-01/|-- README.md
 |
-├─── .github
-|       .keep
+|─── baseline_codes
+|   |─── base_dataset.py
+|   |─── baseline_code.ipynb
+|   └─── eda.ipynb
 |
-|─── backbone
-|       base_backbone.py
-|       conv_backbone.py
-|       __init__.py
+|─── configs
+|   └─── base_config.yaml
 |
-|─── data_sets
-|       base_dataset.py
-|       folder_dataset.py
+|─── docker
+|   └─── Dockerfile
+|
+|─── notebooks
+|   |─── augmentation_visualization.ipynb
+|   |─── data_similarity_remove.ipynb
+|   |─── eda.ipynb
+|   |─── grad_cam.ipynb
+|   |─── model_structure_confirm.ipynb
+|   |─── pre_test_score.ipynb
+|   └─── validation_data_check.ipynb
+|
+|─── requirements.txt
+|
+|─── src
+|   |
+|   |─── __init__.py
+|   |─── data
+|   |   |─── __init__.py
+|   |   |─── base_dataset.py
+|   |   |─── data_module.py
+|   |   |─── folder_dataset.py
+|   |   |─── swin_custom_dataset.py
+|   |   └─── transforms.py
+|   |
+|   |─── models
+|   |   |─── __init__.py
+|   |   |─── base_backbone.py
+|   |   |─── clip_backbone.py
+|   |   |─── cnnvit_backbone.py
+|   |   |─── conv_backbone.py
+|   |   |─── ensemble.py
+|   |   |─── model_selector.py
+|   |   └─── swin_backbone.py
+|   |
+|   |─── training
+|   |   |─── __init__.py
+|   |   |
+|   |   |─── losses
+|   |   |   |─── __init__.py
+|   |   |   |─── ce_loss.py
+|   |   |   |─── focal_loss.py
+|   |   |   |─── loss_selector.py
+|   |   |   └─── swin_combined_loss.py
+|   |   |
+|   |   └─── trainer.py
+|   |
+|   └─── utils
+|       |─── __init__.py
+|       └─── util.py
 |
 |─── streamlit
-|       data_analize_page.py
-|       README.md
-|       requirements.txt
+|   |─── README.md
+|   |─── data_analize_page.py
+|   └─── requirements.txt
 |
-|─── utils
-     |── util.py
-     |── __init__.py
+└─── tools
+    |─── __init__.py
+    └─── train_and_predict.py
 ```
 
 ## Usage
@@ -122,7 +162,7 @@ level1-imageclassification-cv-01/
   **Augmentation methods that cannot be handled by `[Torchvision.transforms](https://pytorch.org/vision/0.9/transforms.html)' or '[Albumentations.Transforms](https://albumentations.ai/docs/getting_started/transforms_and_targets/)' are performed using OpenCV. The augmented data is then added to the data folder.** 
 
 - #### Data Augmentation using Transform  
-  **Modify the `TransformSelector` class in `select_transforms.py` as follows:** 
+  **Modify the `TransformSelector` class in `src/data/transforms.py` as follows:** 
     
     ```python
     class TransformSelector:
@@ -131,7 +171,7 @@ level1-imageclassification-cv-01/
         """
         def __init__(self, transform_type: str):
             # Ensure the transformation library is supported
-            if transform_type in ["torchvision", "albumentations"]:
+            if transform_type in ["torchvision", "albumentations", "aug_test"]:
                 self.transform_type = transform_type
             else:
                 raise ValueError("Unknown transformation library specified.")
@@ -142,6 +182,8 @@ level1-imageclassification-cv-01/
                 transform = TorchvisionTransform(is_train=is_train)
             elif self.transform_type == 'albumentations':
                 transform = AlbumentationsTransform(is_train=is_train)
+            elif self.transform_type == 'aug_test':
+                transform = A_aug_test(is_train=is_train)
             
             return transform
     ```
@@ -150,47 +192,72 @@ level1-imageclassification-cv-01/
 <details>
   <summary id="model-architecture">Model Architecture</summary> 
     
-  - You can use pre-built models from the `timm` library or `torchvision`. To customize, you can create new models under the `backbone` folder and modify them as needed. 
+  - You can use pre-built models from the `timm` library or `torchvision`. To customize, you can create new models under the `src/models/` folder and modify them as needed. 
   </details> 
 
-<details> 
-  <summary id="train--test">Train & Test</summary> 
-
-  - To train and test the model, simply run the following command: 
-      ```bash 
-      python main.py 
-      ``` 
-
-</details> 
 
 <details> 
   <summary id="additional-setting">Additional Setting</summary> 
 
-  - Modify `config.yaml` to adjust various training and model parameters: 
+  - Modify `configs/base_config.yaml` to adjust various training and model parameters: 
 
       ```yaml
-      exp_name: test
-      batch_size: 128
-      epochs: 1
-      learning_rate: 0.01
+      ######################
+      # 실험 설정
+      ######################
+      use_wandb: True
+      exp_name: resnext50_32x4d
       gpus: 0
+      
+      ######################
+      # 모델 설정
+      ######################
       model_type: timm
-      # for torchvision and timm
-      model_name: resnet18
-      pretrained: False
+      model_name: resnext50_32x4d
+      pretrained: True
+      
+      ######################
+      # 데이터 설정
+      ######################
       train_data_dir: ./data/train
       test_data_dir: ./data/test
       base_output_dir: ./result
       num_classes: 500
-      use_wandb: True
       data_name: base
-      num_workers: 1
-      optim: Adam
-      loss: CE
-      # select_transforms.py
-      transform_name: torchvision
       traindata_info_file: ./data/train.csv
       testdata_info_file: ./data/test.csv
+      
+      ######################
+      # 학습 설정
+      ######################
+      epochs: 100
+      learning_rate: 0.0001
+      num_workers: 8
+      cos_sch: 50
+      early_stopping: 10
+      warm_up: 10
+      batch_size: 64
+      weight_decay: 0.0
+      loss: CE
+      transform_name: albumentations
+      optim: AdamW
+      mixed_precision: True
+      num_cnn_classes: 20
+      
+      ######################
+      # 데이터 증강 설정
+      ######################
+      cutmix_mixup: mixup_cutmix
+      cutmix_ratio: 0.2
+      mixup_ratio: 0.2
+      
+      ######################
+      # 교차 검증 및 기타 설정
+      ######################
+      n_splits: 5
+      accumulate_grad_batches: 8
+      sweep_mode: False
+      use_kfold: True
       ```
       
 </details>
