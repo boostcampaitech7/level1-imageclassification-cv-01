@@ -10,6 +10,20 @@ def load_data():
     train_data = pd.read_csv('../data/train.csv')
     return test_data, train_data
 
+@st.cache_data
+def load_output_data():
+    import os
+    # ../result 폴더에 있는 모든 csv 파일 가져오는 코드
+    csv_files = []
+    for root, dirs, files in os.walk('../result'):
+        csv_files.extend([os.path.join(root, file) for file in files if file.endswith('.csv')])
+
+    output_data = {}
+    for file in csv_files:
+        output_data[file] = pd.read_csv(file)
+
+    return output_data
+
 # 데이터 페이지 단위로 스플릿
 @st.cache_data(show_spinner=False)
 def split_frame(input_df, rows):
@@ -25,7 +39,7 @@ def show_image(type,path):
 def show_images(type, img_pathes, window):
     cols = window.columns(5)
     for idx,path in enumerate(img_pathes.values):
-        cols[idx%5].image(f"../data/{type}/"+path)
+        cols[idx%5].image(type+path)
         cols[idx%5].write(path)
 
 # 데이터 프레임 페이지 단위로 출력
@@ -68,7 +82,7 @@ def show_dataframe(dataset,window,type):
     show_images(type, pages[current_page - 1]['image_path'], con2)
 
 # 원본데이터 확인 가능 아웃풋도 확인하도록 할 수 있을 듯?
-option = st.sidebar.selectbox("데이터 선택",("원본 데이터"))
+option = st.sidebar.selectbox("데이터 선택",("원본 데이터", "결과 데이터"))
 
 if option == "원본 데이터":
     # 데이터 로드
@@ -78,7 +92,7 @@ if option == "원본 데이터":
     
     # 테스트 데이터 출력
     st.header("테스트 데이터")
-    page = show_dataframe(testd,st,'test')
+    page = show_dataframe(testd,st,'../data/test/')
 
     # 트레인 데이터 출력
     ## 타겟 별로 출력할지 설정
@@ -86,8 +100,9 @@ if option == "원본 데이터":
     if not targetdata:
         # 전체 출력
         st.header("트레인 데이터")
-        show_dataframe(traind,st,'train')
+        show_dataframe(traind,st,'../data/train/')
         traintargetcount = traind["target"].value_counts().sort_index()
+        # 분포 확인
         st.header("트레인 데이터 타겟 값 분포")
         c1, c2 = st.columns([1,7])
         c1.dataframe(traintargetcount, height=350)
@@ -98,8 +113,37 @@ if option == "원본 데이터":
         c2.bar_chart(traincountcount, height=350)
     else:
         # 타겟 별 출력 시 어떤 타겟 출력할 것인지 선택
-        target = st.sidebar.number_input("트레인 데이터 타겟 설정",min_value=traind['target'].min(),max_value=traind['target'].max(), step=1)
+        target = st.sidebar.number_input("타겟",min_value=traind['target'].min(),max_value=traind['target'].max(), step=1)
 
         traind = traind.loc[traind.target == target].reset_index()
         st.header("트레인 데이터")
-        show_dataframe(traind,st,'train')
+        show_dataframe(traind,st,'../data/train/')
+# output 파일 체크
+elif option == "결과 데이터":
+    output_data = load_output_data()
+
+    #사이드 바에서 결과 데이터 중 csv 파일 하나를 선택
+    selected_file = st.sidebar.selectbox("CSV File", output_data.keys())
+    outdata = output_data[selected_file][['image_path', 'target']]
+
+    # 데이터 출력
+    st.header(selected_file)
+
+    targetdata = st.sidebar.checkbox("아웃풋 데이터 타겟 설정")
+    if not targetdata:
+        # 아웃풋 데이터 기준으로 분포 확인
+        show_dataframe(outdata,st,'../data/test/')
+        outtargetcount = outdata["target"].value_counts().sort_index()
+        st.header("아웃풋 데이터 타겟 값 분포")
+        c1, c2 = st.columns([2,7])
+        c1.dataframe(outtargetcount, height=350)
+        c2.line_chart(outtargetcount, height=350)
+
+        outcountcount = outtargetcount.value_counts().sort_index().rename('coc')
+        c1.dataframe(outcountcount, height=350)
+        c2.bar_chart(outcountcount, height=350)
+    else:
+        # 아웃풋 데이터 기준으로 타겟 별로 출력
+        target = st.sidebar.number_input("타겟",min_value=outdata['target'].min(),max_value=outdata['target'].max(), step=1)
+        outdata = outdata.loc[outdata.target == target].reset_index(drop=True)
+        show_dataframe(outdata,st,'../data/test/')
