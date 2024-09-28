@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 class SwinCombinedLoss(nn.Module):
-    def __init__(self, large_loss_weight=0.7, small_loss_weight=0.2, original_loss_weight=0.1):
+    def __init__(self, large_loss_weight=0.5, small_loss_weight=0.3, original_loss_weight=0.2):
         super(SwinCombinedLoss, self).__init__()
         self.large_loss_fn = nn.CrossEntropyLoss()
         self.small_loss_fn = nn.CrossEntropyLoss()
