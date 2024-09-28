@@ -42,10 +42,6 @@ class SwinCustomDataset(Dataset):
         )
 
         if self.transform:
-            
-            # augmented = self.transform(image=image)
-            # image = augmented['image']
-            # CHANGE 
             image = self.transform(image)
 
         if self.is_inference:
