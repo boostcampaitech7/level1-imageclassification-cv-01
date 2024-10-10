@@ -1,0 +1,21 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: win-64
+# pytorch=2.3.0=cpu_py312h83d76c9_0
+# pytorch-lightning=2.3.0=py312haa95532_0
+# torchmetrics=1.4.0.post0=pyhd8ed1ab_0
+# torchvision=0.18.1=cpu_py312h9788fc5_0
+# tqdm=4.66.5=py312hfc267ef_0
+pandas==2.1.4
+matplotlib==3.8.4
+seaborn==0.13.2
+Pillow==10.3.0
+timm==0.9.16
+albumentations==1.4.14
+tqdm==4.66.1
+scikit-learn==1.4.2
+opencv-python
+torchmetrics==1.4.0
+pytorch-lightning==2.4.0
+wandb
+open_clip_torch==2.26.1
